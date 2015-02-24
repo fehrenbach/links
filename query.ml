@@ -91,7 +91,7 @@ let used_database v : Value.database option =
           end
   and used =
     function
-      | `For (gs, os, _body) -> generators gs
+      | `For (gs, _os, _body) -> generators gs
       | `Table ((db, _), _, _) -> Some db
       | _ -> None in
   let rec comprehensions =
@@ -155,7 +155,7 @@ let rec tail_of_t : t -> t = fun v ->
   let tt = tail_of_t in
     match v with
       | `For (_gs, _os, `Singleton (`Record fields)) -> `Record fields
-      | `For (_gs, _os, `If (c, t, `Concat [])) -> tt (`For (_gs, _os, t))
+      | `For (_gs, _os, `If (_c, t, `Concat [])) -> tt (`For (_gs, _os, t))
       | _ -> (* Debug.print ("v: "^string_of_t v); *) assert false
 
 (** Return the type associated with an expression *)
@@ -167,17 +167,17 @@ let rec type_of_expression : t -> Types.datatype = fun v ->
     Types.make_record_type (StringMap.map te fields)
   in
     match v with
-      | `Concat (v::vs) -> te v
-      | `For (gens, _os, body) -> te body
+      | `Concat (v::_vs) -> te v
+      | `For (_gens, _os, body) -> te body
       | `Singleton (`Record fields) -> record fields
       | `If (_, t, _) -> te t
       | `Table (_, _, row) -> `Record row
-      | `Constant (`Bool b) -> Types.bool_type
-      | `Constant (`Int i) -> Types.int_type
-      | `Constant (`Char c) -> Types.char_type
-      | `Constant (`Float f) -> Types.float_type
-      | `Constant (`String s) -> Types.string_type
-      | `Project (`Var (x, field_types), name) -> StringMap.find name field_types
+      | `Constant (`Bool _b) -> Types.bool_type
+      | `Constant (`Int _i) -> Types.int_type
+      | `Constant (`Char _c) -> Types.char_type
+      | `Constant (`Float _f) -> Types.float_type
+      | `Constant (`String _s) -> Types.string_type
+      | `Project (`Var (_x, field_types), name) -> StringMap.find name field_types
       | `Apply ("Empty", _) -> Types.bool_type (* HACK *)
       | `Apply (f, _) -> TypeUtils.return_type (Env.String.lookup Lib.type_env f)
       | e -> Debug.print("Can't deduce type for: " ^ Show_t.show e); assert false
@@ -264,7 +264,7 @@ let table_field_types (_, _, (fields, _, _)) =
 
 let rec field_types_of_list =
   function
-    | `Concat (v::vs) -> field_types_of_list v
+    | `Concat (v::_vs) -> field_types_of_list v
     | `Singleton (`Record fields) -> StringMap.map type_of_expression fields
     | `Table table -> table_field_types table
     | _ -> assert false
@@ -449,7 +449,7 @@ struct
           | _ -> eval_error "Error erasing from record"
       in
         erase (value env r, labels)
-    | `Inject (label, v, t) -> `Variant (label, value env v)
+    | `Inject (label, v, _t) -> `Variant (label, value env v)
     | `TAbs (_, v) -> value env v
     | `TApp (v, _) -> value env v
 
@@ -559,13 +559,13 @@ struct
               | `Let (xb, (_, tc)) ->
                   let x = Var.var_of_binder xb in
                     computation (bind env (x, tail_computation env tc)) (bs, tailcomp)
-              | `Fun ((f, _) as fb, (_, args, body), (`Client | `Native)) ->
+              | `Fun (_, (_, _args, _body), (`Client | `Native)) ->
                   eval_error "Client function"
-              | `Fun ((f, _) as fb, (_, args, body), _) ->
+              | `Fun ((f, _), (_, args, body), _) ->
                   computation
                     (bind env (f, `Closure ((List.map fst args, body), env)))
                     (bs, tailcomp)
-              | `Rec defs ->
+              | `Rec _defs ->
                   eval_error "Recursive function"
               | `Alien _ -> (* just skip it *)
                   computation env (bs, tailcomp)
@@ -663,7 +663,7 @@ struct
     match c with
       | `Constant (`Bool true) -> t
       | `Constant (`Bool false) -> e
-      | `If (c', t', e') ->
+      | `If (c', t', _e') ->
         reduce_if_body
           (reduce_or (reduce_and (c', t'),
                       reduce_and (reduce_not c', t')),
@@ -759,7 +759,7 @@ struct
             reduce_eq (a, b)
         | (`Record lfields, `Record rfields) ->
           List.fold_right2
-            (fun (s1, v1) (s2, v2) e ->
+            (fun (_s1, v1) (_s2, v2) e ->
               reduce_and (reduce_eq (v1, v2), e))
             (StringMap.to_alist lfields)
             (StringMap.to_alist rfields)
@@ -892,10 +892,10 @@ struct
       function
         | `Val t        -> [t]
         | `Gen g        -> gen g
-        | `TailGen g    -> []
+        | `TailGen _g   -> []
         | `DefVal t     -> [default_of_base_type t]
         | `DefGen g     -> List.map default_of_base_value (gen g)
-        | `DefTailGen g -> []
+        | `DefTailGen _g -> []
         | `Branch i     -> [`Constant (`Int (Num.num_of_int i))]
     in
       concat_map long
@@ -947,7 +947,7 @@ struct
         | _ -> assert false
   and queries : context -> t -> t list -> (int * query_tree) list =
     fun gs cond vs ->
-      let i, cs =
+      let _, cs =
         List.fold_left
           (fun (i, cs) v ->
             let c = query gs cond v in
@@ -1001,13 +1001,11 @@ struct
   (* compute the order indexes for the specified query tree along a
      path *)
   let rec flatten_at path active : query_tree -> orders =
-    let box branch = `Constant (`Int (Num.num_of_int branch)) in
       function
         | `Leaf (_, os) -> os
         | `Node (os, cs) ->
           if active then
-            let (branch :: path) = path in
-              os @ `Branch branch :: flatten_at_children branch path active cs
+            os @ `Branch (List.hd path) :: flatten_at_children (List.hd path) (List.tl path) active cs
           else
             os @ `Branch 0 :: flatten_at_children 0 [] active cs
   and flatten_at_children branch path active =
@@ -1063,8 +1061,8 @@ struct
 
   let index_length : (orders -> t list) -> clause list -> int =
     fun pick_orders ->
-      function
-        | (_, _, os) :: _ -> List.length (pick_orders os)
+    function [] -> assert false
+           | (_, _, os) :: _ -> List.length (pick_orders os)
 
   let ordered_query v =
     let ss = query v in
@@ -1072,7 +1070,7 @@ struct
     let vs = List.map (query_of_clause long_orders) ss in
       vs, n
 
-  let unordered_query_of_clause (gs, body, os) =
+  let unordered_query_of_clause (gs, body, _os) =
     match gs with
       | [] -> body
       | _  -> `For (gs, [], body)
@@ -1493,7 +1491,7 @@ struct
     let q = outer_query db v in
       string_of_query db range q
 
-  let update db ((x, table), where, body) =
+  let update db ((_x, table), where, body) =
     reset_dummy_counter ();
     let base = (base db) ->- (string_of_base db true) in
     let where =
@@ -1512,7 +1510,7 @@ struct
     in
       "update "^table^" set "^fields^where
 
-  let delete db ((x, table), where) =
+  let delete db ((_x, table), where) =
     reset_dummy_counter ();
     let base = base db ->- (string_of_base db true) in
     let where =
