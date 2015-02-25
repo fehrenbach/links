@@ -1,4 +1,4 @@
-open Notfound
+(* open Notfound *)
 
 open Utility
 
@@ -64,6 +64,7 @@ module Session = struct
         | Accepting cs         -> let c = new_channel () in (c, Accepting (cs @ [c]), true)
         | Requesting [c]       -> (c, Balanced, false)
         | Requesting (c :: cs) -> (c, Requesting cs, false)
+        | Requesting []        -> assert false
       in
         Hashtbl.replace access_points apid state';
         c, blocked
@@ -77,6 +78,7 @@ module Session = struct
         | Requesting cs       -> let c = new_channel () in (c, Requesting (cs @ [c]), true)
         | Accepting [c]       -> (c, Balanced, false)
         | Accepting (c :: cs) -> (c, Accepting cs, false)
+        | Accepting []        -> assert false
       in
         Hashtbl.replace access_points apid state';
         flip_chan c, blocked
@@ -275,7 +277,7 @@ module Eval = struct
                 `Record (StringSet.fold (fun label fields -> List.remove_assoc label fields) labels fields)
             | _ -> eval_error "Error erasing labels {%s}" (String.concat "," (StringSet.elements labels))
         end
-    | `Inject (label, v, t) -> `Variant (label, value env v)
+    | `Inject (label, v, _t) -> `Variant (label, value env v)
     | `TAbs (_, v) -> value env v
     | `TApp (v, _) -> value env v
     | `XmlNode (tag, attrs, children) ->
@@ -303,7 +305,7 @@ module Eval = struct
           ) with
             | TopLevel (_, v) -> atomic := previousAtomic; v
         end
-    | `Coerce (v, t) -> value env v
+    | `Coerce (v, _t) -> value env v
 
   and apply cont env : Value.t * Value.t list -> Value.t =
     function
@@ -338,7 +340,7 @@ module Eval = struct
                Proc.send_message msg pid;
                Proc.awaken pid
              with
-                 Proc.UnknownProcessID pid ->
+                 Proc.UnknownProcessID _pid ->
                    (* FIXME: printing out the message might be more useful. *)
                    failwith("Couldn't deliver message because destination process has no mailbox."));
             apply_cont cont env (`Record [])
@@ -478,7 +480,7 @@ module Eval = struct
     (*****************)
     | `PrimitiveFunction (n,None), args ->
 	apply_cont cont env (Lib.apply_pfun n args)
-    | `PrimitiveFunction (n,Some code), args ->
+    | `PrimitiveFunction (_n,Some code), args ->
 	apply_cont cont env (Lib.apply_pfun_by_code code args)
     | `ClientFunction name, args -> client_call name cont args
     | `Continuation c,      [p] -> apply_cont c env p
@@ -517,7 +519,7 @@ module Eval = struct
               let cont' = (((Var.scope_of_binder b, var, locals, (bs, tailcomp))
                            ::cont) : Value.continuation) in
                 tail_computation env cont' tc
-          | `Fun ((f, _) as fb, (_, args, body), `Client) ->
+          | `Fun ((f, _) as fb, (_, _args, _body), `Client) ->
               let env' = Value.bind f (`ClientFunction
                                          (Js.var_name_binder fb),
                                        Var.scope_of_binder fb) env in
@@ -676,7 +678,7 @@ module Eval = struct
       begin
         let chan = value env v in
         Debug.print("choosing from: " ^ Value.string_of_value chan);
-        let (out', in') = Session.unbox_chan' chan in
+        let (_out', in') = Session.unbox_chan' chan in
         let inp = Num.int_of_num in' in
           match Session.receive inp with
           | Some v ->

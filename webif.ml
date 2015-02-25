@@ -19,11 +19,11 @@ type web_request =
   | EvalMain
       deriving (Show)
 
-type program = Ir.binding list * Ir.computation * Value.continuation;;
+(* type program = Ir.binding list * Ir.computation * Value.continuation;; *)
 
 (** Does at least one of the functions have to run on the client? *)
 let is_client_program : Ir.program -> bool =
-  fun (bs, main) ->
+  fun (bs, _main) ->
     exists
       (function
          | `Fun (_, _, `Client)
@@ -35,8 +35,8 @@ let is_client_program : Ir.program -> bool =
          | _ -> false)
       bs
 
-let serialize_call_to_client (continuation, name, arg) =
-  Json.jsonize_call continuation name arg
+(* let serialize_call_to_client (continuation, name, arg) = *)
+(*   Json.jsonize_call continuation name arg *)
 
 let resolve_function funcmap x env =
   let binding = assoc x funcmap in
@@ -60,12 +60,12 @@ let rec resolve_functions closures funcmap =
                         (Value.extend (Value.empty_env clos) env),
                         f, scope)
     | `ClientFunction _ as x -> x
-    | `Continuation _ as x -> assert false      (* Unimplemented. Traverse it? *)
+    | `Continuation _ as _x -> assert false      (* Unimplemented. Traverse it? *)
     | `PrimitiveFunction _ as x -> x
     | #Value.primitive_value as x -> x
     | `Socket _ as x -> x
 
-let parse_remote_call (valenv, nenv, tyenv) (program:Ir.program) cgi_args =
+let parse_remote_call (valenv, nenv, _tyenv) (program:Ir.program) cgi_args =
   let funcmap = Ir.funcmap program in (* FIXME: Quite slow... *)
   let closures = Value.get_closures valenv in
   let fname = Utility.base64decode (assoc "__name" cgi_args) in
@@ -161,11 +161,11 @@ let parse_cont_apply (valenv, nenv, tyenv) program params =
 
 (** Extract expression/environment pair from the CGI parameters.*)
 let parse_expr_eval (valenv, nenv, tyenv) program params =
-  let string_pair (l, r) =
-    `Extend
-      (StringMap.from_alist [("1", `Constant (`String l));
-                             ("2", `Constant (`String r))],
-       None) in
+  (* let string_pair (l, r) = *)
+  (*   `Extend *)
+  (*     (StringMap.from_alist [("1", `Constant (`String l)); *)
+  (*                            ("2", `Constant (`String r))], *)
+  (*      None) in *)
   let closures, unmarshal_envs = make_unmarshal_envs (valenv, nenv, tyenv)
     program in
     (* FIXME: "_k" is a misnomer; it should be "_expr" *)
@@ -226,7 +226,7 @@ let is_multipart () =
 
 let get_cgi_args() =
   if is_multipart() then
-    map (fun (name, {Cgi.value=value}) -> (name, value))
+    map (fun (name, {Cgi.value=value;_}) -> (name, value))
       (Cgi.parse_multipart_args())
   else
     Cgi.parse_args()
@@ -249,7 +249,7 @@ let parse_request env comp cgi_args =
     call to renderPage. We also return the resulting continuation so
     that we can use it elsewhere (i.e. in processing ExprEval).
 *)
-let wrap_with_render_page (nenv, {Types.tycon_env=tycon_env; Types.var_env=_})
+let wrap_with_render_page (nenv, {Types.tycon_env=tycon_env; Types.var_env=_;_})
                           (bs, body) =
   let xb, x = Var.fresh_var_of_type (Instantiate.alias "Page" [] tycon_env) in
   let tail = Ir.var_appln nenv "renderPage" [`Variable x] in
@@ -258,7 +258,7 @@ let wrap_with_render_page (nenv, {Types.tycon_env=tycon_env; Types.var_env=_})
 
 (* jcheney: lowered type of cont0 *)
 
-let perform_request cgi_args (valenv, nenv, tyenv) (globals, locals, main) cont0 =
+let perform_request cgi_args (valenv, _nenv, _tyenv) (globals, locals, main) cont0 =
   function
     | ContApply(cont, params) ->
         Debug.print("Doing ContApply");
@@ -385,7 +385,7 @@ let make_program (_,nenv,tyenv) prelude filename =
 ;;
 
 (* wrapper for ordinary uses of serve_request_program *)
-let serve_request ((valenv,nenv,tyenv) as envs) prelude filename =
+let serve_request ((valenv,_nenv,_tyenv) as envs) prelude filename =
 
   let cgi_args = get_cgi_args() in
   Lib.cgi_parameters := cgi_args;
