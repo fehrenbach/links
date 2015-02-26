@@ -1525,15 +1525,20 @@ end
 module Where = struct
     let lookup (var : Var.var) (env : (Var.var * t) list) = snd (List.find (fun (k, _) -> k = var) env)
 
+    (* I think I should roll these six functions into one, returning a triple of maps. Sometimes I
+       can assume that the map holds exactly one key value pair. This should save me a lot of
+       boilerplate. Or perhaps use some Scrap Your Boilerplate thing. *)
     let rec relations (t : t) (env : (Var.var * t) list) = match t with
       | `Var (var, _types) -> relations (lookup var env) env
       | `Table ((_database, _configString), relation, (types, _, _)) ->
          StringMap.map (fun _ -> `Constant (`String relation)) types
       | _ -> StringMap.empty
 
-    let relation (t : t) env = match t with
+    let rec relation (t : t) env = match t with
       | `Project (t, (name : string)) -> StringMap.find name (relations t env)
-      | _ -> assert false (* ; `Constant (`String "⊥") *)
+      | `If (c, t, e) -> `If (c, relation t env, relation e env)
+      | `Constant _ -> `Constant (`String "⊥")
+      | _ -> Debug.print ("relation of: "^string_of_t t) ; assert false (* `Constant (`String "⊥") *)
 
 
     let rec columns t env = match t with
@@ -1542,9 +1547,11 @@ module Where = struct
          StringMap.mapi (fun k _ -> `Constant (`String k)) types
       | _ -> StringMap.empty
 
-    let column t env = match t with
+    let rec column t env = match t with
       | `Project (t, (name : string)) -> StringMap.find name (columns t env)
-      | _ -> assert false (* `Constant (`String "⊥") *)
+      | `If (c, t, e) -> `If (c, column t env, column e env)
+      | `Constant _ -> `Constant (`String "⊥")
+      | _ -> Debug.print ("column of: "^string_of_t t) ; assert false (* `Constant (`String "⊥") *)
 
     (* We assume that tables have an `id` column.
 
@@ -1554,11 +1561,13 @@ module Where = struct
       | `Var (var, _types) as v -> tuples (lookup var env) env v
       | `Table ((_database, _configString), _, (types, _, _)) ->
          StringMap.map (fun _ -> `Project (var, "id")) types
-      | _ -> StringMap.empty
+      | _ -> assert false
 
-    let tuple t env = match t with
+    let rec tuple t env = match t with
       | `Project (t, (name : string)) -> StringMap.find name (tuples t env (`Var ((-1), StringMap.empty)))
-      | _ -> `Constant (`Int (Num.num_of_int (-1)))
+      | `If (c, t, e) -> `If (c, tuple t env, tuple e env)
+      | `Constant _ -> `Constant (`Int (Num.num_of_int (-1)))
+      | _ -> Debug.print ("tuple of: "^string_of_t t) ; assert false (* `Constant (`Int (Num.num_of_int (-1))) *)
 
     let rec rewrite t env = match t with
       (* I think we might need to split this into multiple passes.
