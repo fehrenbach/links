@@ -1525,54 +1525,43 @@ end
 module Where = struct
     let lookup (var : Var.var) (env : (Var.var * t) list) = snd (List.find (fun (k, _) -> k = var) env)
 
-    (* I think I should roll these six functions into one, returning a triple of maps. Sometimes I
-       can assume that the map holds exactly one key value pair. This should save me a lot of
-       boilerplate. Or perhaps use some Scrap Your Boilerplate thing. *)
-    let rec relations (t : t) (env : (Var.var * t) list) = match t with
-      | `Var (var, _types) -> relations (lookup var env) env
+    let the (m : t StringMap.t) : t =
+      assert (StringMap.size m = 1);
+      StringMap.find "" m
+
+    let eht (t : t) : t StringMap.t =
+      StringMap.singleton "" t
+
+    (* Returns a triple of (usually singleton) maps describing the provenance.
+       First is the relation, second the column, third the tuple. *)
+    let rec prov: t ->
+                  (Var.var * t) list ->
+                  [> `Var of Var.var * Types.datatype Utility.StringMap.t ] ->
+                  (t Utility.StringMap.t * t Utility.StringMap.t * t Utility.StringMap.t) =
+      fun t env var -> match t with
+      | `If (c, t, e) ->
+         let (t_r, t_c, t_t) = prov t env var in
+         let (e_r, e_c, e_t) = prov e env var in
+         (eht (`If (c, the t_r, the e_r)),
+          eht (`If (c, the t_c, the e_c)),
+          eht (`If (c, the t_t, the e_t)))
+      | `Constant _ ->
+         (eht (`Constant (`String "⊥")),
+          eht (`Constant (`String "⊥")),
+          eht (`Constant (`Int (Num.num_of_int (-1)))))
+      | `Var (var, _types) as v -> prov (lookup var env) env v
       | `Table ((_database, _configString), relation, (types, _, _)) ->
-         StringMap.map (fun _ -> `Constant (`String relation)) types
-      | _ -> StringMap.empty
-
-    let rec relation (t : t) env = match t with
-      | `Project (t, (name : string)) -> StringMap.find name (relations t env)
-      | `If (c, t, e) -> `If (c, relation t env, relation e env)
-      | `Constant _ -> `Constant (`String "⊥")
-      | _ -> Debug.print ("relation of: "^string_of_t t) ; assert false (* `Constant (`String "⊥") *)
-
-
-    let rec columns t env = match t with
-      | `Var (var, _types) -> columns (lookup var env) env
-      | `Table ((_database, _configString), _relation, (types, _, _)) ->
-         StringMap.mapi (fun k _ -> `Constant (`String k)) types
-      | _ -> StringMap.empty
-
-    let rec column t env = match t with
-      | `Project (t, (name : string)) -> StringMap.find name (columns t env)
-      | `If (c, t, e) -> `If (c, column t env, column e env)
-      | `Constant _ -> `Constant (`String "⊥")
-      | _ -> Debug.print ("column of: "^string_of_t t) ; assert false (* `Constant (`String "⊥") *)
-
-    (* We assume that tables have an `id` column.
-
-       FIXME: this does not work for variables that refer to something other than tables. They might
-              not actually contain the field we project to... *)
-    let rec tuples t env var = match t with
-      | `Var (var, _types) as v -> tuples (lookup var env) env v
-      | `Table ((_database, _configString), _, (types, _, _)) ->
-         StringMap.map (fun _ -> `Project (var, "id")) types
+         (StringMap.map (fun _ -> `Constant (`String relation)) types,
+          StringMap.mapi (fun k _ -> `Constant (`String k)) types,
+          StringMap.map (fun _ -> `Project (var, "id")) types)
+      | `Project (t, (name : string)) ->
+         let (pr, pc, pt) = prov t env var in
+         (eht (StringMap.find name pr),
+          eht (StringMap.find name pc),
+          eht (StringMap.find name pt))
       | _ -> assert false
 
-    let rec tuple t env = match t with
-      | `Project (t, (name : string)) -> StringMap.find name (tuples t env (`Var ((-1), StringMap.empty)))
-      | `If (c, t, e) -> `If (c, tuple t env, tuple e env)
-      | `Constant _ -> `Constant (`Int (Num.num_of_int (-1)))
-      | _ -> Debug.print ("tuple of: "^string_of_t t) ; assert false (* `Constant (`Int (Num.num_of_int (-1))) *)
-
     let rec rewrite t env = match t with
-      (* I think we might need to split this into multiple passes.
-         First see what provenance we need, then rewrite with that
-         information in mind. *)
       (* Not sure what the second parameter is. Something about ordering, I think. TODO: ask Sam *)
       | `For (bindings, os, returnValue) ->
          let bindings' = env@bindings in
@@ -1586,12 +1575,12 @@ module Where = struct
       | `Singleton (`Record m) ->
          let kvs = StringMap.to_alist m in
          let newkvs = List.concat (List.map (fun (key, value) ->
+                                             let (pr, pc, pt) = prov value env (`Var ((-1), StringMap.empty)) in
                                              [(key, value);
-                                              ("p_"^key^"_r", relation value env);
-                                              ("p_"^key^"_c", column value env);
-                                              ("p_"^key^"_t", tuple value env)]) kvs) in
+                                              ("p_"^key^"_r", the pr);
+                                              ("p_"^key^"_c", the pc);
+                                              ("p_"^key^"_t", the pt)]) kvs) in
          `Singleton (`Record (StringMap.from_alist newkvs))
-      | `Singleton _ -> (* TODO *) assert false
       | `Concat queries -> `Concat (List.map (fun x -> rewrite x env) queries)
       (* | `Table of Value.table *)
       (* | `Record of t StringMap.t | `Project of t * string | `Erase of t * StringSet.t *)
