@@ -1563,12 +1563,7 @@ module Where = struct
 
     let rec rewrite t env = match t with
       (* Not sure what the second parameter is. Something about ordering, I think. TODO: ask Sam *)
-      | `For (bindings, os, returnValue) ->
-         let bindings' = env@bindings in
-         (* TODO: Do we know that bindings are unique? If they are, remove assertion.
-                  Otherwise we need proper closures... *)
-         assert ((List.length bindings') = (List.length (List.sort_uniq compare (List.map fst bindings'))));
-         `For (bindings, os, rewrite returnValue bindings')
+      | `For (bindings, os, returnValue) -> `For (bindings, os, rewrite returnValue (env@bindings))
       (* If we want to support querying provenance, we need to do something with `c` here. *)
       | `If (c, t, e) -> `If (c, rewrite t env, rewrite e env)
       (* Do we need to know where we are to do this correctly? *)
