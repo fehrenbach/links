@@ -1525,66 +1525,30 @@ end
 module Where = struct
     let lookup (var : Var.var) (env : (Var.var * t) list) = snd (List.find (fun (k, _) -> k = var) env)
 
-    let the (m : t StringMap.t) : t =
-      assert (StringMap.size m = 1);
-      StringMap.find "" m
-
-    let eht (t : t) : t StringMap.t =
-      StringMap.singleton "" t
-
-    (* Returns a triple of (usually singleton) maps describing the provenance.
-       First is the relation, second the column, third the tuple. *)
-    let rec prov: t ->
-                  (Var.var * t) list ->
-                  [> `Var of Var.var * Types.datatype Utility.StringMap.t ] ->
-                  (t Utility.StringMap.t * t Utility.StringMap.t * t Utility.StringMap.t) =
-      fun t env var -> match t with
-      | `If (c, t, e) ->
-         let (t_r, t_c, t_t) = prov t env var in
-         let (e_r, e_c, e_t) = prov e env var in
-         (eht (`If (c, the t_r, the e_r)),
-          eht (`If (c, the t_c, the e_c)),
-          eht (`If (c, the t_t, the e_t)))
-      | `Constant _ ->
-         (eht (`Constant (`String "⊥")),
-          eht (`Constant (`String "⊥")),
-          eht (`Constant (`Int (Num.num_of_int (-1)))))
-      | `Var (var, _types) as v -> prov (lookup var env) env v
-      | `Table ((_database, _configString), relation, (types, _, _)) ->
-         (StringMap.map (fun _ -> `Constant (`String relation)) types,
-          StringMap.mapi (fun k _ -> `Constant (`String k)) types,
-          StringMap.map (fun _ -> `Project (var, "id")) types)
-      | `Project (t, (name : string)) ->
-         let (pr, pc, pt) = prov t env var in
-         (eht (StringMap.find name pr),
-          eht (StringMap.find name pc),
-          eht (StringMap.find name pt))
-      | _ -> assert false
-
-    let rec rewrite t env = match t with
+    let rec rewrite t env v : t= match t with
       (* Not sure what the second parameter is. Something about ordering, I think. TODO: ask Sam *)
-      | `For (bindings, os, returnValue) -> `For (bindings, os, rewrite returnValue (env@bindings))
+      | `For (bindings, os, returnValue) -> `For (bindings, os, rewrite returnValue (env@bindings) v)
       (* If we want to support querying provenance, we need to do something with `c` here. *)
-      | `If (c, t, e) -> `If (c, rewrite t env, rewrite e env)
-      (* Do we need to know where we are to do this correctly? *)
-      | `Singleton (`Record m) ->
+      | `If (c, t, e) -> `If (c, rewrite t env v, rewrite e env v)
+      | `Concat queries -> `Concat (List.map (fun x -> rewrite x env v) queries)
+      | `Singleton `Record m ->
          let kvs = StringMap.to_alist m in
          let newkvs = List.concat (List.map (fun (key, value) ->
-                                             let (pr, pc, pt) = prov value env (`Var ((-1), StringMap.empty)) in
-                                             [(key, value);
-                                              ("p_"^key^"_r", the pr);
-                                              ("p_"^key^"_c", the pc);
-                                              ("p_"^key^"_t", the pt)]) kvs) in
+                                             let rewritten = rewrite value env v in
+                                             [(key,           `Project (rewritten, "value"));
+                                              ("p_"^key^"_r", `Project (rewritten, "relation"));
+                                              ("p_"^key^"_c", `Project (rewritten, "column"));
+                                              ("p_"^key^"_t", `Project (rewritten, "tuple"))]) kvs) in
          `Singleton (`Record (StringMap.from_alist newkvs))
-      | `Concat queries -> `Concat (List.map (fun x -> rewrite x env) queries)
-      (* | `Table of Value.table *)
-      (* | `Record of t StringMap.t | `Project of t * string | `Erase of t * StringSet.t *)
-      (* | `Variant of string * t *)
-      (* | `XML of Value.xmlitem *)
-      (* | `Apply of string * t list *)
-      (* | `Closure of (Ir.var list * Ir.computation) * env *)
-      (* | `Primitive of string *)
-      (* | `Var of (Var.var * Types.datatype StringMap.t) | `Constant of Constant.constant ] *)
+      | `Project (t, field) -> let rewritten = rewrite t env v in
+                               `Project (rewritten, field)
+      | `Table ((_, _), relation, (m, _, _)) as t ->
+         `Record (StringMap.mapi (fun k _ ->
+                                  `Record (StringMap.from_alist [("value", t);
+                                                                 ("relation", `Constant (`String relation));
+                                                                 ("column", `Constant (`String k));
+                                                                 ("tuple", `Project (`Project (v, "value"), "id"))])) m)
+      | `Var (n, _) as v -> rewrite (lookup n env) env v
       | _ -> Debug.print ("Don't know how to rewrite "^string_of_t t) ; assert false
   end
 
@@ -1592,16 +1556,17 @@ let compile : Value.env -> (Num.num * Num.num) option * Ir.computation -> (Value
   fun env (range, e) ->
   (* Debug.print ("e: "^Ir.Show_computation.show e); *)
     let v = Eval.eval env e in
-    let p = Where.rewrite v [] in
+    let p = Where.rewrite v [] (`Var ((-1), StringMap.empty)) in
     Debug.print ("v: "^string_of_t v);
-    Debug.print ("p: "^string_of_t p);
+    Debug.print ("Rewritten: "^string_of_t p);
       match used_database v with
         | None -> None
         | Some db ->
             let t = type_of_expression v in
             let q = Sql.ordered_query db range v in
             Debug.print ("Generated query: "^q);
-            Debug.print ("Provenance query: "^(Sql.ordered_query db range p));
+            (* Doesn't work. Eval.eval wants an `Ir.computation`, not a `t`. *)
+            Debug.print ("Provenance query: "^(Sql.ordered_query db range (Eval.eval env p)));
             Some (db, q, t)
 
 let compile_update : Value.database -> Value.env ->
