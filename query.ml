@@ -1402,7 +1402,7 @@ struct
       | `Project (`Var (x, _field_types), name) ->
           `Project (x, name)
       | `Constant c -> `Constant c
-      | _ -> assert false
+      | _t -> Debug.print ("in base:"^string_of_t _t); assert false
 
   (* convert a regexp to a like if possible *)
   and likeify v =
@@ -1523,6 +1523,11 @@ struct
 end
 
 module Where = struct
+    (* let computation_of_t (t : t) : Ir.computation = *)
+    (*   let binders = [] in *)
+    (*   let tailcomp = `Special (`Query (None, t, `Not_typed)) in *)
+    (*   (binders, tailcomp) *)
+
     let lookup (var : Var.var) (env : (Var.var * t) list) = snd (List.find (fun (k, _) -> k = var) env)
 
     let rec rewrite t env v : t= match t with
@@ -1547,26 +1552,47 @@ module Where = struct
                                   `Record (StringMap.from_alist [("value", t);
                                                                  ("relation", `Constant (`String relation));
                                                                  ("column", `Constant (`String k));
-                                                                 ("tuple", `Project (`Project (v, "value"), "id"))])) m)
-      | `Var (n, _) as v -> rewrite (lookup n env) env v
+                                                                 ("tuple", `Project (`Project (v, "value"), "id"))]))
+                                 m)
+      | `Var (n, _) as v -> (match lookup n env with
+                            (* If var refers to a table, keep the table.
+                             * This probably means, that we have to do a lookup somewhere else. *)
+                            | `Table (a, b, c) -> v
+                            | foo -> rewrite foo env v)
       | _ -> Debug.print ("Don't know how to rewrite "^string_of_t t) ; assert false
-  end
 
+    let rec renormalize (t : t) : t = match t with
+      | `For (a, b, c) -> `For (a, b, renormalize c)
+      | `If (a, b, c) -> `If (renormalize a, renormalize b, renormalize c)
+      | `Concat a -> `Concat (List.map renormalize a)
+      | `Singleton a -> `Singleton (renormalize a)
+      | `Record m -> `Record (StringMap.map renormalize m)
+      | `Constant c -> `Constant c
+      | `Var (a, b) -> `Var (a, b)
+      | `Table a -> `Table a
+      | `Apply (a, b) -> `Apply (a, List.map renormalize b)
+      | `Project (t, field) -> (match renormalize t with
+                                | `Record m -> StringMap.find field m
+                                | t -> `Project (t, field))
+      | _ -> Debug.print ("renormalize: "^string_of_t t); assert false
+  end
+                 
 let compile : Value.env -> (Num.num * Num.num) option * Ir.computation -> (Value.database * string * Types.datatype) option =
   fun env (range, e) ->
   (* Debug.print ("e: "^Ir.Show_computation.show e); *)
     let v = Eval.eval env e in
     let p = Where.rewrite v [] (`Var ((-1), StringMap.empty)) in
+    let r = Where.renormalize p in
     Debug.print ("v: "^string_of_t v);
     Debug.print ("Rewritten: "^string_of_t p);
+    Debug.print ("Renormalized: "^string_of_t r);
       match used_database v with
         | None -> None
         | Some db ->
             let t = type_of_expression v in
             let q = Sql.ordered_query db range v in
             Debug.print ("Generated query: "^q);
-            (* Doesn't work. Eval.eval wants an `Ir.computation`, not a `t`. *)
-            Debug.print ("Provenance query: "^(Sql.ordered_query db range (Eval.eval env p)));
+            Debug.print ("Provenance query: "^(Sql.ordered_query db range r));
             Some (db, q, t)
 
 let compile_update : Value.database -> Value.env ->
