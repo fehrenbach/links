@@ -258,6 +258,10 @@ class transform (env : Types.typing_environment) =
       | `CP p ->
          let (o, p, t) = o#cp_phrase p in
          (o, `CP p, t)
+      | `Lineage e ->
+         (* TODO What is the last return value? Some sort of type.
+                 Using the type of e is probably wrong. *)
+         let (o, e, t) = o#phrase e in (o, `Lineage e, t)
       | `Query (range, body, Some t) ->
           let (o, range) =
             optionu o

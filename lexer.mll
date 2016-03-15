@@ -190,6 +190,7 @@ let keywords = [
  "orderby"  , ORDERBY;
  "op"       , OP;
  "page"     , PAGE;
+ "lineage"  , LINEAGE;
  "query"    , QUERY;
  "readonly" , READONLY;
 

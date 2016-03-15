@@ -46,6 +46,7 @@ struct
     | `ListLit (ps, _)
     | `TupleLit ps -> List.for_all is_pure ps
     | `RangeLit (e1, e2) -> is_pure e1 && is_pure e2
+    | `Lineage p
     | `TAbstr (_, p)
     | `TAppl (p, _)
     | `Projection (p, _)
@@ -1751,6 +1752,15 @@ let rec type_check : context -> phrase -> phrase * Types.datatype * usagemap =
                                     (c, `Present (typ v))
                                     (`Any, `Any)) in
               `ConstructorLit (c, Some (erase v), Some type'), type', usages v
+
+        | `Lineage e ->
+           let e = tc e in
+           let t = Types.make_list_type (Types.fresh_type_variable (`Any, `Any)) in
+           (* TODO write griper *)
+           let () = unify ~handle:Gripers.table_name (pos_and_typ e, no_pos t) in
+           `Lineage (erase e),
+           t, (* TODO return type should be [(data: t, prov: (table: String, row: Int))] *)
+           usages e
 
         (* database *)
         | `DatabaseLit (name, (driver, args)) ->

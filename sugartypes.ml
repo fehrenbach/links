@@ -198,6 +198,7 @@ and phrasenode = [
 | `FunLit           of ((Types.datatype * Types.row) list) option * declared_linearity * funlit * location
 | `Spawn            of spawn_kind * location * phrase * Types.row option
 | `Query            of (phrase * phrase) option * phrase * Types.datatype option
+| `Lineage          of phrase
 | `RangeLit         of (phrase * phrase)
 | `ListLit          of phrase list * Types.datatype option
 | `Iteration        of iterpatt list * phrase

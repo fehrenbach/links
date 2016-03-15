@@ -186,6 +186,7 @@ let datatype d = d, None
 %token FOR LARROW LLARROW WHERE FORMLET PAGE
 %token LRARROW
 %token COMMA VBAR DOT DOTDOT COLON COLONCOLON
+%token LINEAGE
 %token TABLE TABLEHANDLE FROM DATABASE QUERY WITH YIELDS ORDERBY 
 %token TABLEKEYS /* SAND */
 %token UPDATE DELETE INSERT VALUES SET RETURNING
@@ -516,6 +517,7 @@ exps:
 | exp                                                          { [$1] }
 
 unary_expression:
+| LINEAGE unary_expression                                     { `Lineage $2, pos () }
 | MINUS unary_expression                                       { `UnaryAppl (([], `Minus),      $2), pos() }
 | MINUSDOT unary_expression                                    { `UnaryAppl (([], `FloatMinus), $2), pos() }
 | PREFIXOP unary_expression                                    { `UnaryAppl (([], `Name $1), $2), pos() }
