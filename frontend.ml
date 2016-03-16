@@ -49,6 +49,7 @@ struct
         ->- DesugarDatatypes.sentence tyenv
         ->- uncurry TypeSugar.Check.sentence
         ->- after_typing ((FixTypeAbstractions.fix_type_abstractions tyenv)#sentence ->- snd)
+        ->- after_typing ((DesugarLineage.desugar_lineage tyenv)#sentence ->- snd)
         ->- after_typing ((DesugarCP.desugar_cp tyenv)#sentence ->- snd)
         ->- after_typing ((DesugarInners.desugar_inners tyenv)#sentence ->- snd)
         ->- after_typing ((DesugarProcesses.desugar_processes tyenv)#sentence ->- snd)
