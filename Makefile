@@ -99,6 +99,7 @@ SOURCES = $(OPC)                                \
           desugarLAttributes.mli desugarLAttributes.ml   \
           transformSugar.mli transformSugar.ml           \
           fixTypeAbstractions.mli fixTypeAbstractions.ml \
+          desugarLineage.mli desugarLineage.ml           \
           desugarPages.mli desugarPages.ml               \
           desugarFormlets.mli desugarFormlets.ml         \
           desugarRegexes.mli desugarRegexes.ml           \
