@@ -50,6 +50,27 @@ let lin data prov t : Sugartypes.phrasenode =
 let empty_prov t : Sugartypes.phrasenode =
   `ListLit ([], Some (lint t))
 
+class replace_variable name expr =
+object (o : 'self_type)
+  inherit SugarTraversals.map as super
+
+  method! phrasenode : Sugartypes.phrasenode -> Sugartypes.phrasenode = function
+    | `Var x when x == name -> expr
+    | e -> super#phrasenode e
+end
+
+(** In expression `in_expr` replace all references to variable named `var_name` with expression `with_expr`.
+ Often written as: in_expr[with_expr/var_name]
+ or: in_expr[var_name ↦ with_expr]
+ *)
+let subst : Sugartypes.name -> Sugartypes.phrasenode -> Sugartypes.phrase -> Sugartypes.phrase
+  = fun var_name with_expr in_expr ->
+  (* TODO I keep cargo-culting this invocation around.
+          figure out what the : .. :> business is about and whether I actually need it... *)
+  ((new replace_variable var_name with_expr) : replace_variable :> SugarTraversals.map)#phrase in_expr
+  (* Would this do? *)
+  (* (new replace_variable var_name with_expr)#phrase in_expr *)
+
 class lineage_rewriting env =
 object (o : 'self_type)
   inherit (TransformSugar.transform env) as super
@@ -67,13 +88,29 @@ object (o : 'self_type)
          for (y <- P[[e1]])
            for (z <- P[[e2]] [y.data/x])
            return {<data:z.data, prov:y.prov U z.prov>} *)
-    (* TODO
-    | `Iteration (gens, body, cond, orderby) ->
-       let (o, gens) = listu o (fun o -> o#iterpatt) gens in
-       let (o, body, t) = o#phrase body in
-       let (o, cond, _) = option o (fun o -> o#phrase) cond in
-       let (o, orderby, _) = option o (fun o -> o#phrase) orderby in
-       (o, `Iteration (gens, body, cond, orderby), t) *)
+    (* Is this different for table (<--) comprehensions? *)
+    (* The iterpatt is definitely different: we need to project to the view. But does that affect the for? *)
+    (* (\* TODO generalize to multiple generators *\) *)
+    (* | `Iteration ([gen], body, cond, orderby) -> *)
+    (*    let (o, gen) = o#iterpatt gen in *)
+    (*    let (o, body, t) = o#phrase body in *)
+    (*    let (o, cond, _) = option o (fun o -> o#phrase) cond in *)
+    (*    let (o, orderby, _) = option o (fun o -> o#phrase) orderby in *)
+    (*    (o, `Iteration ([gen], body, cond, orderby), t) *)
+
+    (* table tname with (oid: Int, _) where constraints from db =>
+       (table .., fun () { for (x <-- table ..) [(data = x, prov = [("table" = tname, row = x.oid)])] })
+     * In lineage branch, every table has to have a oid: Int column.
+     *)
+
+    (* Just recurse, there has to be a better way... *)
+    | `Block (bs, e) ->
+       let envs = o#backup_envs in
+       let (o, bs) = listu o (fun o -> o#binding) bs in
+       let (o, e, t) = o#phrase e in
+       let _o = o#restore_envs envs in
+       {< var_env=var_env >}, `Block (bs, e), t
+
     | e -> Debug.print ("identity desugaring for: "^Sugartypes.Show_phrasenode.show e);
            super#phrasenode e
 end
