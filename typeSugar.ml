@@ -1781,9 +1781,17 @@ let rec type_check : context -> phrase -> phrase * Types.datatype * usagemap =
             let () = unify ~handle:Gripers.table_name (pos_and_typ tname, no_pos Types.string_type)
             and () = unify ~handle:Gripers.table_db (pos_and_typ db, no_pos Types.database_type)
             and () = unify ~handle:Gripers.table_keys (pos_and_typ keys, no_pos Types.keys_type) in
-              `TableLit (erase tname, (dtype, Some (read_row, write_row, needed_row)), constraints, erase keys, erase db),
-              `Table (read_row, write_row, needed_row),
-              merge_usages [usages tname; usages db]
+
+            let prov_t = Types.make_record_type (StringMap.from_alist [("table", Types.string_type);
+                                                                       ("row", Types.int_type)]) in
+            let lin_t = Types.make_record_type (StringMap.from_alist [("data", read_row); ("prov", prov_t)]) in
+            let delayed_type = Types.make_pure_function_type Types.unit_type (Types.make_list_type lin_t) in
+            let pair = Types.make_tuple_type [`Table (read_row, write_row, needed_row);
+                                              delayed_type] in
+            `TableLit (erase tname, (dtype, Some (read_row, write_row, needed_row)), constraints, erase keys, erase db),
+            pair,
+            merge_usages [usages tname; usages db]
+
         | `DBDelete (pat, from, where) ->
             let pat  = tpc pat in
             let from = tc from in
@@ -2289,8 +2297,10 @@ let rec type_check : context -> phrase -> phrase * Types.datatype * usagemap =
                             usages e :: generator_usages,
                             pattern_env pattern :: environments)
                      | `Table (pattern, e) ->
-                         let a = Types.fresh_type_variable (`Any, `Any) in
-                         let tt = Types.make_table_type (a, Types.fresh_type_variable (`Any, `Any), Types.fresh_type_variable (`Any, `Any)) in
+                        let a = Types.fresh_type_variable (`Any, `Any) in
+                        let foo = Types.fresh_type_variable (`Any, `Any) in
+                        let tt = Types.make_table_type (a, Types.fresh_type_variable (`Any, `Any), Types.fresh_type_variable (`Any, `Any)) in
+                        let tt = Types.make_tuple_type [tt; foo] in
                          let pattern = tpc pattern in
                          let e = tc e in
                          let () = unify ~handle:Gripers.iteration_table_body (pos_and_typ e, no_pos tt) in

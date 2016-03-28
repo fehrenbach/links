@@ -1,11 +1,3 @@
-# var clients = [(id=1), (id=42), (id=2), (id=3)];
-# # var marketers = [(name="a", clients=[1]), (name="b", clients=[]), (name="c", clients=[1, 2, 3])];
-# var marketers_names = [(name="a"), (name="b"), (name="c")];
-# var mc = [(m="a", c=1),
-#           (m="c", c=1),
-#           (m="c", c=2),
-#           (m="c", c=3)];
-
 var db = database "links";
 
 var clients =

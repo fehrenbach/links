@@ -325,10 +325,14 @@ class transform (env : Types.typing_environment) =
                  let t = TypeUtils.return_type (Instantiate.apply_type t tyargs) in
                  let (o, e, _) = o#phrase e in
                    (o, `UnaryAppl ((tyargs, op), e), t))
-      | `FnAppl (f, args) ->
+      | `FnAppl (f, args) as _dbg ->
           let (o, f, ft) = o#phrase f in
           let (o, args, _) = list o (fun o -> o#phrase) args in
-            (o, `FnAppl (f, args), TypeUtils.return_type ft)
+          (try
+              (o, `FnAppl (f, args), TypeUtils.return_type ft)
+            with
+              TypeUtils.TypeDestructionError s ->
+              failwith (s ^ " in " ^ (Sugartypes.Show_phrasenode.show _dbg)))
       | `TAbstr (tyvars, e) ->
           let outer_tyvars = o#backup_quantifiers in
           let (o, qs) = o#quantifiers (Types.unbox_quantifiers tyvars) in
@@ -381,9 +385,13 @@ class transform (env : Types.typing_environment) =
                   end
           in
             (o, `RecordLit (fields, base), t)
-      | `Projection (e, name) ->
-          let (o, e, t) = o#phrase e in
-          (o, `Projection (e, name), TypeUtils.project_type name t)
+      | `Projection (e, name) as _dbg ->
+         let (o, e, t) = o#phrase e in
+         (try
+             (o, `Projection (e, name), TypeUtils.project_type name t)
+           with
+             TypeUtils.TypeDestructionError s ->
+             failwith (s ^ " in " ^ (Sugartypes.Show_phrasenode.show _dbg)))
       | `With (e, fields) ->
           let (o, e, t) = o#phrase e in
           let (o, fields) =

@@ -356,6 +356,7 @@ struct
     | `ListLit (ps, _)
     | `TupleLit ps -> union_map phrase ps
 
+    | `Lineage p
     | `Query (None, p, _) -> phrase p
     | `Query (Some (limit, offset), p, _) -> union_all [phrase limit; phrase offset; phrase p]
 

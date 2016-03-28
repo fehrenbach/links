@@ -314,6 +314,7 @@ val make_record_type  : datatype field_env -> datatype
 val make_variant_type : datatype field_env -> datatype
 val make_table_type : datatype * datatype * datatype -> datatype
 val make_endbang_type : datatype
+val make_pure_function_type : datatype -> datatype -> datatype
 
 (** subtyping *)
 val is_sub_type : datatype * datatype -> bool
