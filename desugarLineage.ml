@@ -59,7 +59,7 @@ object (o : 'self_type)
   inherit SugarTraversals.map as super
 
   method! phrasenode : Sugartypes.phrasenode -> Sugartypes.phrasenode = function
-    | `Var x when x == name -> expr
+    | `Var x when x = name -> expr
     | e -> super#phrasenode e
 end
 
@@ -103,19 +103,36 @@ object (o : 'self_type)
        (* Debug.print ("res: "^Sugartypes.Show_phrasenode.show res); *)
        (o, res, Types.make_list_type (lint t))
 
-    (* P[[for (x <- e1) return e2]] =
-         for (y <- P[[e1]])
-           for (z <- P[[e2]] [y.data/x])
+    (* P[[for (x <- e) return body]] =
+         for (y <- P[[e]])
+           for (z <- P[[body]] [y.data/x])
            return {<data:z.data, prov:y.prov U z.prov>} *)
     (* Is this different for table (<--) comprehensions? *)
     (* The iterpatt is definitely different: we need to project to the view. But does that affect the for? *)
     (* (\* TODO generalize to multiple generators *\) *)
-    (* | `Iteration ([gen], body, cond, orderby) -> *)
-    (*    let (o, gen) = o#iterpatt gen in *)
-    (*    let (o, body, t) = o#phrase body in *)
-    (*    let (o, cond, _) = option o (fun o -> o#phrase) cond in *)
-    (*    let (o, orderby, _) = option o (fun o -> o#phrase) orderby in *)
-    (*    (o, `Iteration ([gen], body, cond, orderby), t) *)
+    | `Iteration ([`Table ((`Variable (x, xt, _), _) as p, e)], body, cond, orderby) ->
+       let (o, e, _) = o#phrase e in
+       let (o, p) = o#pattern p in
+       let (o, body, t) = o#phrase body in
+       let (o, cond, _) = option o (fun o -> o#phrase) cond in
+       let (o, orderby, _) = option o (fun o -> o#phrase) orderby in
+       (* TODO might need type here *)
+       let y = `Variable ("y", None, dp), dp in
+       let y_in_e = `List (y, (`FnAppl ((`Projection (e, "2"), dp), []), dp)) in
+       let zbody = subst x (`Projection ((`Var "y", dp), "data")) body in
+       (* TODO might need type here *)
+       let z = `Variable ("z", None, dp), dp in
+       let z_in_zbody = `List (z, zbody) in
+       (* TODO might need type here *)
+       let new_body: Sugartypes.phrasenode = `ListLit ([`RecordLit ([("data", (`Projection ((`Var "z", dp), "data"), dp));
+                                                                     ("prov", (`InfixAppl (([(* TODO might need type argument to ++? *)], `Name "++"),
+                                                                                           (`Projection ((`Var "y", dp), "prov"), dp),
+                                                                                           (`Projection ((`Var "z", dp), "prov"), dp)), dp))],
+                                                                    None), dp], None) in
+       let inner : Sugartypes.phrasenode = `Iteration ([z_in_zbody], (new_body, dp), cond, None) in
+       let outer : Sugartypes.phrasenode = `Iteration ([y_in_e], (inner, dp), cond, None) in
+       (* (o, `Iteration ([`Table (p, e)], body, cond, orderby), t) *)
+       (o, outer, t)
 
     (* Just recurse, there has to be a better way... *)
     | `Block (bs, e) ->
@@ -154,8 +171,9 @@ object (o : 'self_type)
   method! phrasenode : Sugartypes.phrasenode -> ('self_type * Sugartypes.phrasenode * Types.datatype) = function
     | `Lineage e ->
        let (var_env, tycon_env, formlet_env, effect_row) = o#backup_envs in
-       let env : Types.typing_environment = {
-           var_env = var_env;
+       let env : Types.typing_environment =
+         let open Types in
+         { var_env = var_env;
            tycon_env = tycon_env;
            effect_row = effect_row } in
        (* TODO have to pass the CURRENT environment, which could have been extended by preceding definitions! *)
