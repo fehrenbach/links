@@ -2535,3 +2535,30 @@ let make_table_type (r, w, n) = `Table (r, w, n)
 let make_endbang_type : datatype = `Alias (("EndBang", []), `Output (unit_type, `End))
 
 let make_pure_function_type args res = `Function (args, make_closed_row FieldEnv.empty, res)
+
+(** Construct lineage type from type of data
+
+  Lin ($T) = (data: $T,
+              prov: [(table: String, row: Int)])
+*)
+let make_lineage_type (t : datatype) : datatype =
+  `Alias (("Lin", [`Type t]),
+          (make_record_type
+             (StringMap.from_alist
+                [("data", t);
+                 ("prov", make_list_type (make_record_type
+                                            (StringMap.from_alist
+                                               [("table", string_type);
+                                                ("row", int_type)])))])))
+(* Concrete version
+ (data: $T,
+  prov: [(table: String, row: Int)])
+ *)
+(* let make_lineage_type t = *)
+(*   make_record_type *)
+(*     (StringMap.from_alist *)
+(*        [("data", t); *)
+(*         ("prov", make_list_type (make_record_type *)
+(*                                    (StringMap.from_alist *)
+(*                                       [("table", string_type); *)
+(*                                        ("row", int_type)])))]) *)

@@ -306,7 +306,7 @@ let apply_type : Types.datatype -> Types.type_arg list -> Types.datatype =
         | `ForAll (vars, t) -> t, Types.unbox_quantifiers vars
         | t -> t, [] in
     let tenv, renv, penv =
-      if (List.length vars <> List.length tyargs) then raise ArityMismatch;
+      if (List.length vars <> List.length tyargs) then (Debug.print ("expected " ^ string_of_int (List.length vars) ^ " type arguments, but got " ^ string_of_int (List.length tyargs)); raise ArityMismatch);
       List.fold_right2
         (fun var t (tenv, renv, penv) ->
            match (var, t) with

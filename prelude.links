@@ -1166,3 +1166,7 @@ fun assertEq (actual, expected) server {
       sysexit(2);
   }
 }
+
+typename Lin(t) = (data: t,
+                   prov: ("table": String,
+                          row: Int));

@@ -316,6 +316,12 @@ val make_table_type : datatype * datatype * datatype -> datatype
 val make_endbang_type : datatype
 val make_pure_function_type : datatype -> datatype -> datatype
 
+(** Construct lineage type from type of data
+ (data: $T,
+  prov: [(table: String, row: Int)])
+*)
+val make_lineage_type : datatype -> datatype
+
 (** subtyping *)
 val is_sub_type : datatype * datatype -> bool
 val is_sub_row : row * row -> bool

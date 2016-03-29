@@ -108,7 +108,7 @@ let rec listu :
           let (o, x) = f o x in
           let (o, xs) = listu o f xs in (o, x::xs)
 
-let check_type_application (e, t) k =
+let check_type_application (e, t, tyargs) k =
   begin
     try
       k ()
@@ -116,6 +116,7 @@ let check_type_application (e, t) k =
       prerr_endline ("Arity mismatch in type application");
       prerr_endline ("Expression: " ^ Show_phrasenode.show e);
       prerr_endline ("Type: "^Types.string_of_datatype t);
+      prerr_endline ("tyargs: "^String.concat "," (List.map Types.string_of_type_arg tyargs));
       raise Instantiate.ArityMismatch
   end
 
@@ -308,7 +309,7 @@ class transform (env : Types.typing_environment) =
       | `InfixAppl ((tyargs, op), e1, e2) ->
           let (o, op, t) = o#binop op in
             check_type_application
-              (`InfixAppl ((tyargs, op), e1, e2), t)
+              (`InfixAppl ((tyargs, op), e1, e2), t, tyargs)
               (fun () ->
                  let t = TypeUtils.return_type (Instantiate.apply_type t tyargs) in
                  let (o, e1, _) = o#phrase e1 in
@@ -320,7 +321,7 @@ class transform (env : Types.typing_environment) =
       | `UnaryAppl ((tyargs, op), e) ->
           let (o, op, t) = o#unary_op op in
             check_type_application
-              (`UnaryAppl ((tyargs, op), e), t)
+              (`UnaryAppl ((tyargs, op), e), t, tyargs)
               (fun () ->
                  let t = TypeUtils.return_type (Instantiate.apply_type t tyargs) in
                  let (o, e, _) = o#phrase e in
@@ -343,7 +344,7 @@ class transform (env : Types.typing_environment) =
       | `TAppl (e, tyargs) ->
           let (o, e, t) = o#phrase e in
             check_type_application
-              (`TAppl (e, tyargs), t)
+              (`TAppl (e, tyargs), t, tyargs)
               (fun () ->
                  let t = Instantiate.apply_type t tyargs in
                    (o, `TAppl (e, tyargs), t))
