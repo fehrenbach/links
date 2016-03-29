@@ -35,12 +35,12 @@ fun q() {
 
 fun lin_a() {
   for (a <-- agencies)
-    [(data = a, prov = [("table" = "agencies", row = a.id)])]
+    [(data = a, prov = [("table" = "agencies", row = a.oid)])]
 }
 
 fun lin_e() {
   for (e <-- externalTours)
-    [(data = e, prov = [("table" = "externaltours", row = e.id)])]
+    [(data = e, prov = [("table" = "externaltours", row = e.oid)])]
 }
 
 # Query q manually rewritten to calculate lineage
@@ -59,20 +59,22 @@ fun q_lineage() {
   }
 }
 
+fun q_auto_lin() {
+  lineage {
+    for (a <-- agencies)
+      for (e <-- externalTours)
+      where (a.name == e.name && e.type == "boat")
+        [(name = a.name,
+          phone = a.phone)]
+  }
+}
+
+
 fun test() {
   assertEq(q(), [(name = "BayTours", phone = "415-1200"),
                  (name = "BayTours", phone = "415-1200"),
                  (name = "HarborCruz", phone = "831-3000")]);
-  # This is a bit fragile, because ordering depends on internals of query compilation...
-  assertEq(q_lineage(), [(data = (name = "BayTours", phone = "415-1200"),
-                          prov = [(row = 1, "table" = "agencies"),
-                                  (row = 5, "table" = "externaltours")]),
-                         (data = (name = "BayTours", phone = "415-1200"),
-                          prov = [(row = 1, "table" = "agencies"),
-                                  (row = 6, "table" = "externaltours")]),
-                         (data = (name = "HarborCruz", phone = "831-3000"),
-                          prov = [(row = 2, "table" = "agencies"),
-                                  (row = 7, "table" = "externaltours")])])
+  assertEq(q_auto_lin(), q_lineage())
 }
 
 test()
