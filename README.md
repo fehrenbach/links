@@ -1,5 +1,7 @@
 [![Build Status](https://travis-ci.org/fehrenbach/links.svg)](https://travis-ci.org/fehrenbach/links)
 
+[Lineage example](https://gist.github.com/fehrenbach/d9632263738125bed93ea5f659695e19)
+
 ### Links: Linking Theory to Practice for the Web
 
 Links helps to build modern Ajax-style applications: those with
