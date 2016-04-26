@@ -45,6 +45,7 @@ let subst : Sugartypes.name -> Sugartypes.phrasenode -> Sugartypes.phrase -> Sug
   = fun var_name with_expr in_expr ->
   (new replace_variable var_name with_expr)#phrase in_expr
 
+(** 𝔏 *)
 class lineage_rewriting env =
 object (o : 'self_type)
   inherit (TransformSugar.transform env) as super
@@ -112,6 +113,7 @@ object (o : 'self_type)
            res
 end
 
+(** 𝔇 *)
 class desugar_lineage env =
 object (o : 'self_type)
   inherit (TransformSugar.transform env) as super
