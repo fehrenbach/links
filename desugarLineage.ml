@@ -107,6 +107,16 @@ object (o : 'self_type)
        (* Debug.print ("================================= " ^ x ^ " end ============================="); *)
        (o, outer, res_t)
 
+    (* | `FnAppl (f, args) -> *)
+    (*       let (o, f, ft) = o#phrase f in *)
+    (*       let (o, args, _) = list o (fun o -> o#phrase) args in *)
+    (*       (try *)
+    (*           (o, `FnAppl (f, args), TypeUtils.return_type ft) *)
+    (*         with *)
+    (*           TypeUtils.TypeDestructionError s -> *)
+    (*           failwith (s ^ " in " ^ (Sugartypes.Show_phrasenode.show _dbg))) *)
+
+        
     | e -> (* Debug.print ("recurse into: "^pps PpSugartypes.phrasenode e); *)
            let (_, e', t') as res = super#phrasenode e in
            (* Debug.print ("from recursive call: "^pps PpSugartypes.phrasenode e' ^ " : " ^ Types.Show_datatype.show t'); *)
@@ -194,4 +204,62 @@ object (o : 'self_type)
            res
 end
 
-let desugar_lineage env = ((new desugar_lineage env) : desugar_lineage :> TransformSugar.transform)
+class stuffdoer inlin = object (o : 'self_type)
+  inherit SugarTraversals.map as super
+
+  method! bindingnode : Sugartypes.bindingnode -> Sugartypes.bindingnode = function
+    | `Fun ((n, _, _), lin, (tyvars, flit), loc, _x_i4) as _dbg -> begin
+        let nflit = (new stuffdoer false)#funlit flit in
+        let lflit = (new stuffdoer true)#funlit flit in
+        match nflit, lflit with
+          (npss, nbody), (lpss, lbody) ->
+          let loc = o#location loc in
+          let _x_i4 = o#option (fun o -> o#datatype') _x_i4 in
+          let regular : Sugartypes.phrasenode =
+            `FunLit (None, lin, (npss, nbody), loc) in
+          let lineage : Sugartypes.phrasenode =
+            `FunLit (None, lin, (lpss, lbody), loc) in
+          let outer : Sugartypes.bindingnode =
+            `Val ([], (`Variable (n, None, dp), dp),
+                  (`TupleLit [regular, dp;
+                              lineage, dp], dp), loc, None (* TODO might want to propagate declared type *)) in
+             Debug.print ("ARgh, a function!!");
+             Debug.print (pps PpSugartypes.bindingnode _dbg);
+             Debug.print "rewrite to pair:";
+             Debug.print (pps PpSugartypes.bindingnode outer);
+             outer
+        | _ -> failwith "noblock"
+      end
+    | `Funs fs ->
+       `Funs (List.map
+                (fun (b, dl, ((tyvars, something), flit), loc, dto, pos) ->
+                 (* let (npss, nbody) = (new stuffdoer false)#funlit flit in *)
+                 (* let wrappedbody = (`TupleLit [nbody; `Constant (`String "can't be called"), dp], dp) in *)
+                 (* (b, dl, ((tyvars, something), (npss, wrappedbody (\* TODO wrap *\))), loc, dto, pos) *)
+                )
+         fs)
+    | e -> super#bindingnode e
+
+  method! phrasenode : Sugartypes.phrasenode -> Sugartypes.phrasenode = function
+    | `FnAppl ((f, args)) ->
+       let p = o#phrase f in
+       let args = o#list (fun o -> o#phrase) args in
+       let f = `Projection (p, if inlin then "2" else "1") in
+       `FnAppl (((f, dp), args))
+    | `Lineage e when inlin ->
+       failwith "`Lineage block inlin"
+    | `Lineage e as e' when not inlin ->
+       Debug.print "entering lineage calculation mode";
+       (new stuffdoer true)#phrasenode e'
+    | e -> super#phrasenode e
+end
+
+(* let desugar_lineage env = ((new desugar_lineage env) : desugar_lineage :> TransformSugar.transform) *)
+let dostuff : Types.typing_environment -> Sugartypes.program -> Sugartypes.program =
+  fun tenv prog ->
+  let res = (new stuffdoer false)#program prog in
+  Debug.print ("Program before:\n" ^ (pps PpSugartypes.program prog));
+  Debug.print ("Program after:\n" ^ (pps PpSugartypes.program res));
+  (* if res = prog then failwith "what?"; *)
+  res
+  

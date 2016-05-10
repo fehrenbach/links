@@ -295,6 +295,10 @@ let rec phrasenode (ppf : formatter) : phrasenode -> 'a = function
      fprintf ppf "%a {@;<1 2>@[<hov>%a@]@\n}"
              keyword "query"
              phrase p
+  | `Lineage p ->
+     fprintf ppf "%a {@;<1 2>@[<hov>%a@]@\n}"
+             keyword "lineage"
+             phrase p
   | `Iteration (ips, b, mw, mo) ->
      fprintf ppf "@[<hov>%a (@[<hv>%a@])%a%a@\n  %a@]"
              keyword "for"
@@ -435,6 +439,12 @@ and funtypesig (b : binder) (ppf : formatter) : datatype' -> 'a = function
              keyword "sig"
              binder b
              datatype dt
+  | dt, Some t ->
+     fprintf ppf "%a %a: @[%a@] # %s"
+             keyword "sig"
+             binder b
+             datatype dt
+             (Types.Show_datatype.show t)
 
 and name (ppf : formatter) : name -> 'a = function
   | s -> fprintf ppf "%s" s
@@ -498,6 +508,7 @@ and quantifier_mtyvar_list (ppf : formatter) : (quantifier * tyvar option) list 
 
 and quantifier_mtyvar (ppf : formatter) : quantifier * tyvar option -> 'a = function
   | q, None -> quantifier ppf q
+  | _ -> fprintf ppf "TODO"
 
 and quantifier (ppf : formatter) : quantifier -> 'a = function
   | q -> type_variable ppf q
@@ -507,7 +518,14 @@ and type_variable (ppf : formatter) : type_variable -> 'a = function
                          n
 and datatype' (ppf : formatter) : datatype' -> 'a = function
   | dt, None -> datatype ppf dt
-
+  | _ -> fprintf ppf "TODO"
+                                          
+and program (ppf : formatter) : program -> 'a = function
+  | bl, None ->fprintf ppf "%a"
+                       binding_list bl
+  | bl, Some p -> fprintf ppf "%a@\n%a"
+                          binding_list bl
+                          phrase p
 
 let plain_formatter ppf =
   pp_set_margin ppf (Settings.get_value Basicsettings.terminal_width);

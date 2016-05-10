@@ -423,7 +423,7 @@ let env : (string * (located_primitive * Types.datatype * pure)) list = [
          with
              Failure "hd" -> failwith "hd() of empty list"
       ),
-   datatype "([a]) ~> a",
+   datatype "(([a]) ~> a, ([a]) ~> a)",
   IMPURE);
 
   "tl",
@@ -450,7 +450,7 @@ let env : (string * (located_primitive * Types.datatype * pure)) list = [
   "drop",
   (p2 (fun n l ->
          box_list (Utility.drop (unbox_int n) (unbox_list l))),
-   datatype "(Int, [a]) ~> [a]",
+   datatype "((Int, [a]) ~> [a], (Int, [a]) ~> [_])",
   PURE);
 
   "max",

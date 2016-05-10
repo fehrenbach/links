@@ -1753,19 +1753,21 @@ let rec type_check : context -> phrase -> phrase * Types.datatype * usagemap =
                                     (`Any, `Any)) in
               `ConstructorLit (c, Some (erase v), Some type'), type', usages v
 
-        | `Lineage e ->
-           let e = tc e in
-           let element_type = Types.fresh_type_variable (`Any, `Any) in
-           let t = Types.make_list_type element_type in
-           (* TODO write griper *)
-           let () = unify ~handle:Gripers.table_name (pos_and_typ e, no_pos t) in
-           (* TODO Use stuff from desugarLineage.ml / move to types.ml or something..  *)
-           let res_t = Types.make_list_type (Types.make_record_type (StringMap.from_alist [("data", element_type);
-                                                                                           ("prov", Types.make_list_type (Types.make_record_type (StringMap.from_alist [("table", Types.string_type);
-                                                                                                                                                                        ("row", Types.int_type)])))])) in
-           `Lineage (erase e),
-           res_t,
-           usages e
+        (* | `Lineage e -> *)
+        (*    let e = tc e in *)
+        (*    let element_type = Types.fresh_type_variable (`Any, `Any) in *)
+        (*    let t = Types.make_list_type element_type in *)
+        (*    (\* TODO write griper *\) *)
+        (*    let () = unify ~handle:Gripers.table_name (pos_and_typ e, no_pos t) in *)
+        (*    (\* TODO Use stuff from desugarLineage.ml / move to types.ml or something..  *\) *)
+        (*    let res_t = Types.make_list_type (Types.make_record_type (StringMap.from_alist [("data", element_type); *)
+        (*                                                                                    ("prov", Types.make_list_type (Types.make_record_type (StringMap.from_alist [("table", Types.string_type); *)
+        (*                                                                                                                                                                 ("row", Types.int_type)])))])) in *)
+        (*    `Lineage (erase e), *)
+        (*    res_t, *)
+        (*    usages e *)
+        | `Lineage e as _dbg ->
+           failwith ("Lineage blocks should be gone\n" ^ Sugartypes.Show_phrasenode.show _dbg)
 
         (* database *)
         | `DatabaseLit (name, (driver, args)) ->

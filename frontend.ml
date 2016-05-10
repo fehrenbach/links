@@ -26,9 +26,9 @@ struct
         (   DesugarLAttributes.desugar_lattributes#program
         ->- RefineBindings.refine_bindings#program
         ->- DesugarDatatypes.program tyenv.Types.tycon_env
+        ->- DesugarLineage.dostuff tyenv
         ->- TypeSugar.Check.program tyenv
         ->- after_typing ((FixTypeAbstractions.fix_type_abstractions tyenv)#program ->- snd3)
-        ->- after_typing ((DesugarLineage.desugar_lineage tyenv)#program ->- snd3)
         ->- after_typing ((DesugarCP.desugar_cp tyenv)#program ->- snd3)
         ->- after_typing ((DesugarInners.desugar_inners tyenv)#program ->- snd3)
         ->- after_typing ((DesugarProcesses.desugar_processes tyenv)#program ->- snd3)
@@ -49,7 +49,6 @@ struct
         ->- DesugarDatatypes.sentence tyenv
         ->- uncurry TypeSugar.Check.sentence
         ->- after_typing ((FixTypeAbstractions.fix_type_abstractions tyenv)#sentence ->- snd)
-        ->- after_typing ((DesugarLineage.desugar_lineage tyenv)#sentence ->- snd)
         ->- after_typing ((DesugarCP.desugar_cp tyenv)#sentence ->- snd)
         ->- after_typing ((DesugarInners.desugar_inners tyenv)#sentence ->- snd)
         ->- after_typing ((DesugarProcesses.desugar_processes tyenv)#sentence ->- snd)
