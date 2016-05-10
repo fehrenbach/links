@@ -106,6 +106,39 @@ object (o : 'self_type)
        (* Debug.print ("returning body ("^x^") : "^Types.Show_datatype.show res_t); *)
        (* Debug.print ("================================= " ^ x ^ " end ============================="); *)
        (o, outer, res_t)
+    | `Iteration ([`List ((`Variable (x, Some xt, _), _) as p, e)], body, cond, orderby) ->
+       let (o, e, _) = o#phrase e in
+       let (o, p) = o#pattern p in
+       let (o, body, t) = o#phrase body in
+       (* Debug.print ("body (" ^ x ^ ") = " ^ (pps PpSugartypes.phrase body)); *)
+       (* Debug.print ("body (" ^ x ^ ") : " ^  Types.Show_datatype.show t); *)
+       let (o, cond, _) = option o (fun o -> o#phrase) cond in
+       let (o, orderby, _) = option o (fun o -> o#phrase) orderby in
+       let y = Utility.gensym ~prefix:("y_"^x) () in
+       (* Debug.print (x ^ ": "^Types.Show_datatype.show xt); *)
+       let yt : Types.datatype = Types.make_lineage_type xt in
+       (* Debug.print (y ^ ": " ^Types.Show_datatype.show yt); *)
+       (* let y_in_e : Sugartypes.iterpatt = `List ((`Variable (y, Some yt, dp), dp), (`FnAppl ((`Projection (e, "2"), dp), []), dp)) in *)
+       let y_in_e : Sugartypes.iterpatt = `List ((`Variable (y, Some yt, dp), dp), e) in
+       let zbody = subst x (`Projection ((`Var y, dp), "data")) body in
+       let cond = OptionUtils.opt_map (fun cond -> subst x (`Projection ((`Var y, dp), "data")) cond) cond in
+       let z = Utility.gensym ~prefix:("z_"^x) () in
+       let zt = TypeUtils.element_type t in
+       (* Debug.print (z ^ ": " ^ Types.Show_datatype.show zt); *)
+       let z_in_zbody = `List ((`Variable (z, Some zt, dp), dp), zbody) in
+       let new_body: Sugartypes.phrasenode = `ListLit ([`RecordLit ([("data", (`Projection ((`Var z, dp), "data"), dp));
+                                                                     ("prov", (`InfixAppl (([`Type (Types.make_record_type (StringMap.from_alist [("table", Types.string_type);
+                                                                                                                                                  ("row", Types.int_type)]));
+                                                                                             `Row (Types.make_empty_closed_row ())], `Name "++"),
+                                                                                           (`Projection ((`Var y, dp), "prov"), dp),
+                                                                                           (`Projection ((`Var z, dp), "prov"), dp)), dp))],
+                                                                    None), dp], Some zt) in
+       let inner : Sugartypes.phrasenode = `Iteration ([z_in_zbody], (new_body, dp), cond, None) in
+       let outer : Sugartypes.phrasenode = `Iteration ([y_in_e], (inner, dp), None, None) in
+       let res_t : Types.datatype = Types.make_list_type zt in
+       (* Debug.print ("returning body ("^x^") : "^Types.Show_datatype.show res_t); *)
+       (* Debug.print ("================================= " ^ x ^ " end ============================="); *)
+       (o, outer, res_t)
 
     | e -> (* Debug.print ("recurse into: "^pps PpSugartypes.phrasenode e); *)
            let (_, e', t') as res = super#phrasenode e in
