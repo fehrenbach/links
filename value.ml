@@ -462,7 +462,7 @@ let rec p_value (ppf : formatter) : t -> 'a = function
   | `Record fields -> begin
       try p_tuple ppf fields
       with Not_tuple ->
-        fprintf ppf "@[<hv 1>(%a)@]" p_record_fields (List.sort (fun (l,_) (r, _) -> compare l r) fields) end
+        fprintf ppf "(@[<hv 0>%a@])" p_record_fields (List.sort (fun (l,_) (r, _) -> compare l r) fields) end
   | `List [] -> fprintf ppf "[]"
   | `List [v] -> fprintf ppf "[%a]" p_value v
   | `List l -> fprintf ppf "[@[<hov 0>";

@@ -155,7 +155,7 @@ object (o : 'self_type)
 
   method! iterpatt : Sugartypes.iterpatt -> ('self_type * Sugartypes.iterpatt) = function
     | `Table (p, e) as _dbg ->
-       Debug.print (pps PpSugartypes.iterpatt _dbg);
+       (* Debug.print (pps PpSugartypes.iterpatt _dbg); *)
        let (o, e, _) = o#phrase e in
        let (o, p) = o#pattern p in
        (* In non-lineage-computing code we take the actual table *)
@@ -175,9 +175,9 @@ object (o : 'self_type)
          { var_env = var_env;
            tycon_env = tycon_env;
            effect_row = effect_row } in
-       Debug.print ("Rewrite to calculate lineage of this:\n"^ pps PpSugartypes.phrase e);
+       (* Debug.print ("Rewrite to calculate lineage of this:\n"^ pps PpSugartypes.phrase e); *)
        let (_, rewritten, t) = ((new lineage_rewriting env) : lineage_rewriting :> TransformSugar.transform)#phrase e in
-       Debug.print ("Rewritten to this:\n"^pps PpSugartypes.phrase rewritten);
+       (* Debug.print ("Rewritten to this:\n"^pps PpSugartypes.phrase rewritten); *)
        let pnode : Sugartypes.phrasenode = `Block ([], rewritten) in
        (o, pnode, t)
 
