@@ -43,6 +43,7 @@ function nolineage {
 function loadDump {
     drop_tables
     psql -U postgres links < "$1.sql"
+    psql -v ON_ERROR_STOP=1 -q -U postgres -d links -f "indices.sql"
 }
 
 # Restore from dump
@@ -65,8 +66,9 @@ function sanitizeCSV {
 }
 
 # sizes=(4096 2048 1024 512 256 128 64 32 16 8 4)
-sizes=(1024 512 256 128 64 32 16 8 4)
-# sizes=(128 64 32 16 8 4)
+# sizes=(1024 512 256 128 64 32 16 8 4)
+# sizes=(1024 512 256 128 64 32 16 8 4)
+sizes=(128 64 32 16)
 
 prepareCSV
 for n in "${sizes[@]}"

@@ -420,7 +420,8 @@ var n = query { length(for (d <-- departments) [d]) };
 
 fun exclude(q) {
   switch (q) {
-    case "Q7" -> n > 512
+    case "Q7" -> n > 128
+    case "QF3" -> n > 512
     case "QC4" -> n > 32
     case _ -> false
   }
