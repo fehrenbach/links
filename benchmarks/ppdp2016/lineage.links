@@ -1,0 +1,470 @@
+var db = database "links";
+
+typename Lin(a) = (data: a, prov: [(row: Int, "table": String)]);
+
+var departments =
+  table "departments"
+  with (oid: Int,
+        name: String)
+  where oid readonly
+  tablekeys [["name"],["oid"]]
+  from db;
+
+var employees =
+  table "employees"
+  with (oid: Int,
+        dept: String,
+        name: String,
+        salary : Int)
+  where oid readonly
+  tablekeys [["name"],["oid"]]
+  from db;
+
+var tasks =
+  table "tasks"
+  with (oid: Int,
+        employee: String,
+        task: String)
+  where oid readonly
+  tablekeys [["oid"]]
+  # tablekeys [["employee", "task"]]
+  from db;
+
+var contacts =
+  table "contacts"
+  with (oid: Int,
+        dept: String,
+        name: String,
+        "client": Bool)
+  where oid readonly
+  tablekeys [["name"], ["oid"]]
+  from db;
+
+# sig tasksOfEmp: ((name:Prov(String)|_)) -> [Prov(String)]
+fun tasksOfEmpL(e) {
+  lineage {
+    for (t <-- tasks)
+    where (t.employee == e.name)
+      [t.task]
+  }
+}
+
+fun tasksOfEmp(e) {
+    for (t <-- tasks)
+    where (t.employee == e.name)
+      [t.task]
+}
+
+
+# sig contactsOfDept: ((name:Prov(String)|_)) -> [("client":Prov(Bool),name:Prov(String))]
+fun contactsOfDeptL(d) {
+  lineage {
+    for (c <-- contacts)
+    where (d.name == c.dept)
+      [("client" = c."client", name = c.name)]
+  }
+}
+
+fun contactsOfDept(d) {
+  lineage {
+    for (c <-- contacts)
+    where (d.name == c.dept)
+      [("client" = c."client", name = c.name)]
+  }
+}
+
+
+# sig employeesByTask: ((employee:Prov(String)|_)) -> [(name:Prov(String),salary:Prov(Int),tasks:[Prov(String)])]
+fun employeesByTaskL(t) {
+  lineage {
+    for (e <-- employees)
+      for (d <-- departments)
+      where (e.name == t.employee && e.dept == d.name)
+        [(name = e.name, salary = e.salary, tasks = tasksOfEmpL(e))]
+  }
+}
+
+# sig employeesOfDept: ((name:Prov(String)|_)) -> [(name:Prov(String),salary:Prov(Int),tasks:[Prov(String)])]
+fun employeesOfDeptL(d) {
+  lineage {
+    for (e <-- employees)
+    where (d.name == e.dept)
+      [(name = e.name, salary = e.salary, tasks = tasksOfEmpL(e))]
+  }
+}
+
+fun employeesOfDept(d) {
+  for (e <-- employees)
+  where (d.name == e.dept)
+    [(name = e.name, salary = e.salary, tasks = tasksOfEmp(e))]
+}
+
+
+# sig any : ([a],(a) -a-> Bool) -a-> Bool
+fun any(xs,p) {
+  not(empty(for (x <- xs) where (p(x)) [()]))
+}
+
+# sig all : ([a],(a) -a-> Bool) -a-> Bool
+fun all(xs, p) {
+  not(any(xs, fun (x) { not(p(x)) }))
+}
+
+sig contains: ([a], a) -> Bool
+fun contains(xs, u) {
+  any(xs, fun (x) { x == u })
+}
+
+fun isPoor(x) { x.salary < 1000 }
+fun isRich(x) { x.salary > 1000000 }
+
+# # sig get: ([(name:a::Any|b)], ((name:a::Any|b)) -c-> d::Any) -c-> [(name:a::Any,tasks:d::Any)]
+sig getL: ([(name:a::Any|b)], ((name:a::Any|b)) -c-> d::Any) -c-> [(data:(name:a::Any,tasks:d::Any),
+                                                                    prov:[(row:Int,"table":String)])]
+fun getL(xs, f) {
+  lineage {
+    for (x <- xs)
+      [(name = x.name, tasks = f(x))]
+  }
+}
+
+# sig outliers: ([(salary:Prov(Int)|a)]) -> [(salary:Prov(Int)|a)]
+# fun outliersL(xs) {
+#   filter(fun (x) { isRich(x) || isPoor(x) }, xs)
+# }
+
+# sig clients: ([("client":Prov(Bool)|a)]) -> [("client":Prov(Bool)|a)]
+fun clientsL(xs) {
+  lineage {
+    filter(fun (x) { x."client" }, xs)
+  }
+}
+
+fun q_org() {
+  lineage {
+    for (d <-- departments)
+      [(contacts = contactsOfDeptL(d),
+        employees = employeesOfDeptL(d),
+        name = d.name)]
+  }
+}
+
+fun qn() {
+  for (d <-- departments)
+    [(concats = contactsOfDeptL(d),
+      employees = employeesOfDeptL(d),
+      name = d.name)]
+}
+
+# query { q_org() }
+
+# q_org()
+
+# # Q1: nestedOrg (factored)
+
+# sig q1 : () -> [(contacts: [("client": Prov(Bool),
+#                              name: Prov(String))],
+#                  employees: [(name: Prov(String),
+#                               salary: Prov(Int),
+#                               tasks: [Prov(String)])],
+#                  name: Prov(String))]
+var q1 = q_org;
+
+# # Q2: expertise (factored)
+
+sig q2 : () -> [Lin((d: String))]
+fun q2() {
+  lineage {
+    for (d <- for (d <-- departments)
+                [(contacts = contactsOfDeptL(d),
+                  employees = employeesOfDeptL(d),
+                  name = d.name)])
+    where (all(d.employees, fun (e) { contains(map(fun (x) { x.data }, e.data.tasks), "abstract") }))
+      [(d = d.name)]
+  }
+}
+
+fun nq2() {
+    for (d <- for (d <-- departments)
+                [(contacts = contactsOfDeptL(d),
+                  employees = employeesOfDeptL(d),
+                  name = d.name)])
+    where (all(d.employees, fun (e) { contains(map(fun (x) { x.data }, e.data.tasks), "abstract") }))
+      [(d = d.name)]
+}
+
+fun anq2() {
+    for (d <- for (d <-- departments)
+                [(contacts = contactsOfDept(d),
+                  employees = employeesOfDept(d),
+                  name = d.name)])
+    where (all(d.employees, fun (e) { contains(e.tasks, "abstract") }))
+      [(d = d.name)]
+}
+
+
+# query { q2() }
+
+# query { nq2() }
+
+# query { anq2() }
+
+# # # Q3: employees with lists of tasks
+# # sig q3 : () -> [(b: [Prov(String)], e: Prov(String))]
+fun q3() {
+  lineage {
+    for (e <-- employees)
+      [(b = tasksOfEmpL(e), e = e.name)]
+  }
+}
+
+# query { q3() }
+
+# Q4: departments with lists of employees
+
+# # sig q4 : () -> [(dpt:Prov(String), emps:[Prov(String)])]
+fun q4() {
+  lineage {
+    for (d <-- departments)
+      [(dpt = d.name,
+        emps = for (e <-- employees)
+               where (d.name == e.dept)
+                 [(e.name)])]
+  }
+}
+
+# query { q4() }
+
+# # # # Q5: Tasks with employees and departments
+
+# # sig q5: () -> [(a: Prov(String),
+# #                 b: [(name: Prov(String),
+# #                      salary: Prov(Int),
+# #                      tasks: [Prov(String)])])]
+
+
+# sig q5: () -> [Lin((a: String,
+#                     b: [Lin((name: String,
+#                              salary: Int,
+#                              tasks: [Lin(String)]))]))]
+fun q5() {
+  lineage {
+    for (t <-- tasks)
+      [(a = t.task, b = employeesByTaskL(t))]
+  }
+}
+
+# query { q5() }
+
+# Q6: shredding paper example (factored)
+
+# # # sig q6: () -> [(department: Prov(String), people: [(name: Prov(String), tasks: [String])])]
+# fun q6() {
+#   lineage {
+#     for (x <- q1())
+#       [(department = x.name,
+#         people = getL(map(fun (z) { z.data }, outliersL(map(fun (e) { e.data }, x.data.employees))),
+#                       fun (y) { map(fun (z) { z }, y.tasks) }) ++
+#                    getL(clientsL(x.contacts), fun (y) { ["buy"] }))]
+#   }
+# }
+
+# This is not quite the q6 from the SIGMOD paper.
+fun q6 () {
+  lineage {
+    for (d <- for (d <-- departments)
+                [(employees = for (e <-- employees)
+                              where (d.name == e.dept)
+                                [(name = e.name, salary = e.salary)],
+                  name = d.name)])
+      [(department = d.name,
+        outliers = for (o <- d.employees)
+                   where (o.salary > 1000000 || o.salary < 1000)
+                     [o])]
+   }
+}
+
+# query { q6() }
+
+# Departments and their outlier employees
+fun q7() {
+  lineage {
+    for (d <-- departments)
+    for (e <-- employees)
+    where (d.name == e.dept && e.salary > 1000000 || e.salary < 1000)
+      [(employee = (name = e.name, salary = e.salary),
+        department = d.name)]
+  }
+}
+
+# query { q7() }
+
+# # QF1
+# lineage {
+#   for (e <-- employees)
+#   where (e.salary > 10000)
+#     [e.name]
+# }
+
+
+# # QF2
+# lineage {
+#   for (e <-- employees)
+#   for (t <-- tasks)
+#   where (e.name == t.employee)
+#     [(name = e.name, t = t.task)]
+# }
+
+# # QF3
+fun qf3() {
+  lineage {
+    for (e1 <-- employees)
+    for (e2 <-- employees)
+    where (e1.dept == e2.dept && e1.salary == e2.salary && e1.name <> e2.name)
+      [(e1.name, e2.name)]
+  }
+}
+
+# # QF4
+
+fun qf4() {
+  lineage {
+    (for (t <-- tasks)
+     where (t.task == "abstract")
+       [t.employee])
+    ++
+    (for (e <-- employees)
+     where (e.salary > 50000)
+       [e.name])
+  }
+}  
+# # QF5
+
+# fun emptyL (l) {
+#   empty(map(fun (x) {x.data}, l))
+# }
+
+# # QX1
+# lineage {
+#   for (x <-- employees)
+#     for (y <-- employees)
+#     where (x.dept == y.dept &&
+#              not(empty(for (t <-- tasks)
+#                        for (u <-- tasks)
+#                        where (t.employee == x.name &&
+#                               u.employee == y.name &&
+#                               t.task == u.task)
+#                          [(t, u)])))
+#       [(a = x.name, b = y.name)]
+# }
+
+# This does not work, and with emptyL it does not typecheck.
+
+# # query 4 from organisation-complex
+fun qc4() {
+  lineage {
+    for (x <-- employees)
+    for (y <-- employees)
+    where (x.dept == y.dept && x.name <> y.name)
+      [(a = x.name,
+        b = y.name,
+        c = (for (t <-- tasks)
+             where (x.name == t.employee)
+               [(doer = "a", task = t.task)]) ++
+              (for (t <-- tasks)
+               where (y.name == t.employee)
+                 [(doer = "b", task = t.task)]))]
+  }
+}
+
+# query { qc4() }
+
+# # outliers from organisation-nested-normalized
+fun q6n() {
+  lineage {
+    for (x <-- departments)
+      [(department = x.name,
+        people = (for (y <-- employees)
+                  where (x.name == y.dept &&
+                           (y.salary < 1000 || y.salary > 1000000))
+                    [(name = y.name,
+                      tasks = for (z <-- tasks)
+                              where (z.employee == y.name)
+                                [z.task])]) ++
+                   (for (y <-- contacts)
+                    where (x.name == y.dept && y."client")
+                      [(name = y.dept, tasks = ["buy"])]))]
+  }
+}
+
+# q6n()
+
+fun time(f) {
+  var start = serverTimeMilliseconds();
+  ignore(query { f() });
+  var total = serverTimeMilliseconds() - start;
+  total
+}
+
+fun repeat(n,f) {
+  if (n == 0) { [] }
+  else f()::repeat(n-1,f)
+}
+
+fun median(xs) {
+  var ys = sortBy(id, xs);
+  hd(drop(length(ys)/2,ys))
+}
+
+var n = query { length(for (d <-- departments) [d]) };
+
+fun exclude(q) {
+  switch (q) {
+    case "Q5" -> n > 2048
+    case "Q7" -> n > 512
+    case "QC4" -> n > 32
+    case _ -> false
+  }
+}
+
+fun test(t) {
+  print(t.msg);
+  if (exclude(t.msg)) {
+    # print("Excluding " ^^ t.msg ^^ " at size " ^^ intToString(n));
+    (median = -1, msg = t.msg, res = "", times = [])
+  } else {
+    var ts = repeat(t.iters, fun () { time(t.q) });
+    var time = median(ts);
+    # print("Time: " ^^ intToString(time));
+    (median = time, msg = t.msg, res = intToString(time), times = ts)
+  }
+}
+
+sig iter : ((a) ~e~> (), [a]) ~e~> ()
+fun iter(f,l) {
+  switch(l) {
+    case [] -> ();
+    case (x::xs) -> f(x); iter(f,xs)
+  }
+}
+
+var iters = 5;
+
+var tests =
+  [test((iters = iters, msg = "Q3", q = q3)),
+   test((iters = iters, msg = "Q4", q = q4)),
+   test((iters = iters, msg = "Q5", q = q5)),
+   test((iters = iters, msg = "AQ6", q = q6)),
+   test((iters = iters, msg = "Q7", q = q7)),
+   test((iters = iters, msg = "QF3", q = qf3)),
+   test((iters = iters, msg = "QF4", q = qf4)),
+   test((iters = iters, msg = "QC4", q = qc4)),
+   test((iters = iters, msg = "Q6N", q = q6n))];
+
+
+iter(fun (u) {
+  print("lineage;" ^^ intToString(n) ^^ ";" ^^ u.msg ^^ ";" ^^ u.res);
+  # iter(fun (t) {
+    # print("allprov;" ^^ intToString(n) ^^ ";" ^^ u.msg ^^ ";" ^^ intToString(u.median) ^^ ";" ^^ show(t))
+  # }, u.times);
+}, tests)
