@@ -214,7 +214,7 @@ fun anq2() {
 fun q3() {
   query {
     for (e <-- employees)
-      [(b = tasksOfEmpL(e), e = e.name)]
+      [(b = tasksOfEmp(e), e = e.name)]
   }
 }
 
