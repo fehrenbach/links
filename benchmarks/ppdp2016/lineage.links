@@ -423,7 +423,8 @@ fun exclude(q) {
     case "Q5" -> n > 2048
     case "Q7" -> n > 128
     case "QF3" -> n > 512
-    case "QC4" -> n > 32
+    case "QC4" -> n > 16 # 32 has worked before..
+    case "Q6N" -> n > 1024
     case _ -> false
   }
 }
