@@ -75,12 +75,12 @@ fun contactsOfDept(d) {
 
 
 # sig employeesByTask: ((employee:Prov(String)|_)) -> [(name:Prov(String),salary:Prov(Int),tasks:[Prov(String)])]
-fun employeesByTaskL(t) {
+fun employeesByTask(t) {
   lineage {
     for (e <-- employees)
       for (d <-- departments)
       where (e.name == t.employee && e.dept == d.name)
-        [(name = e.name, salary = e.salary, tasks = tasksOfEmpL(e))]
+        [(name = e.name, salary = e.salary, tasks = tasksOfEmp(e))]
   }
 }
 
@@ -250,7 +250,7 @@ fun q4() {
 fun q5() {
   query {
     for (t <-- tasks)
-      [(a = t.task, b = employeesByTaskL(t))]
+      [(a = t.task, b = employeesByTask(t))]
   }
 }
 
