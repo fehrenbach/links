@@ -209,9 +209,9 @@ and row (ppf : formatter) : row -> 'a = function
 
 and effect_arrow (ppf : formatter) : row -> 'a = function
   (* TODO not sure these are entirely correct *)
-  | [], `Open (n, (`Unl, `Any), `Rigid) -> fprintf ppf "->"
+  | [], `Open (n, Some (`Unl, `Any), `Rigid) -> fprintf ppf "->"
   | [("wild", `Present `Unit)], `Closed -> fprintf ppf "{}~>"
-  | [("wild", `Present `Unit)], `Open (n, (`Unl, `Any), `Rigid) -> fprintf ppf "~%s~>" n
+  | [("wild", `Present `Unit)], `Open (n, Some (`Unl, `Any), `Rigid) -> fprintf ppf "~%s~>" n
   | r -> fprintf ppf "%a->"
                  row r
 
@@ -233,7 +233,7 @@ and datatype (ppf : formatter) : datatype -> 'a = function
              (argument_list datatype) args
              effect_arrow effrow
              datatype res
-  | `TypeVar (n, (`Unl, `Any), `Rigid) ->
+  | `TypeVar (n, Some (`Unl, `Any), `Rigid) ->
      fprintf ppf "%s" n
   | `TypeApplication (name, args) ->
      fprintf ppf "%s%a"
