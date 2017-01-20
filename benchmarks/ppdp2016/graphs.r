@@ -24,7 +24,7 @@ cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"
 df <- read.csv2("wheredata.csv")
 str(df)
            
-tikz("~/Documents/language-integrated-provenance/ppdp2016/graph.tex", width=3.3, height=3)
+tikz("~/Documents/language-integrated-provenance/scp2016/graph.tex", width=4.5, height=3.5)
 ggplot(df, aes(factor(N), medianms, group=prov, color=prov)) +
     geom_line() +
     geom_point(size = 1, aes(shape=prov)) +
@@ -32,7 +32,7 @@ ggplot(df, aes(factor(N), medianms, group=prov, color=prov)) +
     scale_x_discrete("Number of departments.") +
     facet_wrap(~query, scales="free") +
     theme_tufte() +
-    theme(plot.margin=margin(t=-5, r=0, b=5, l=0), panel.margin=margin(1)) +
+    theme(plot.margin=margin(t=-5, r=0, b=5, l=0), panel.spacing=unit(5, "mm")) +
     ## theme(plot.background= element_rect()) +
     theme(legend.position="bottom") +
     theme(legend.margin=margin(t=-8, r=0, b=0, l=0)) +
