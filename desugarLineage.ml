@@ -227,4 +227,6 @@ object (o : 'self_type)
            res
 end
 
-let desugar_lineage env = ((new desugar_lineage env) : desugar_lineage :> TransformSugar.transform)
+let desugar_lineage env =
+  Debug.debug_time "desugar lineage"
+                   (fun () -> ((new desugar_lineage env) : desugar_lineage :> TransformSugar.transform))
