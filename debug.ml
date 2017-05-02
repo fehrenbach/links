@@ -33,6 +33,6 @@ let debug_time msg f =
   then 
     let start_time = Utility.time_milliseconds() in
     let raw_result = f () in
-    print (msg ^" time: " ^ string_of_int (Utility.time_milliseconds() - start_time));
+    print (msg ^" time (ms): " ^ string_of_int (Utility.time_milliseconds() - start_time));
     raw_result
   else f ();;

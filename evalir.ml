@@ -441,7 +441,7 @@ module Eval = struct
        if Settings.get_value Basicsettings.Shredding.shredding then
          (* Not sure this correct, it compiles though *)
          begin
-           match Query.compile_shredded env (range, e) with
+           match Debug.debug_time "query normalization" (fun () -> (Query.compile_shredded env (range, e))) with
            | None -> computation env cont e
            | Some (db, p) ->
               let get_fields t =
@@ -454,7 +454,7 @@ module Eval = struct
               then
                 begin
                   let execute_shredded_raw (q, t) =
-		    Debug.print ("Generated query: "^q);
+		    (* Debug.print ("Generated query: "^q); *)
 		    Debug.debug_time "query execution" (fun () -> 
 		                                        (Database.execute_select_result (get_fields t) q db, t))
 		  in 
@@ -473,7 +473,7 @@ module Eval = struct
               else
                 begin
                   let execute_shredded (q, t) =
-                    Debug.print ("Generated query: "^q);
+                    (* Debug.print ("Generated query: "^q); *)
                     Debug.debug_time "query execution" (fun () -> 
 		                                        (Database.execute_select (get_fields t) q db, t))
                   in

@@ -132,6 +132,7 @@ let desugar
       (tyenv : Types.typing_environment)
       ((p, t, e) : (Sugartypes.program * Types.datatype * Types.typing_environment))
     : (Sugartypes.program * Types.datatype * Types.typing_environment) =
+  Debug.debug_time "desugar provT" (fun () ->
   (* Debug.print ("tyenv: "^ Types.Show_typing_environment.show tyenv); *)
   (* Debug.print ("env before: "^ Types.Show_typing_environment.show e); *)
   let e = typing_environment e in
@@ -145,3 +146,4 @@ let desugar
   let t = mydesugaring e t in
   (* Debug.print ("Type after: "^Types.Show_datatype.show t); *)
   (p, t, e)
+                   )

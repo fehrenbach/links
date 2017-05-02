@@ -160,4 +160,6 @@ object (o : 'self_type)
 end
 
 let where_prov_rewriting env =
-  ((new where_prov_rewriting env) : where_prov_rewriting :> TransformSugar.transform)
+  Debug.debug_time "where prov rewriting"
+  (fun () -> 
+    ((new where_prov_rewriting env) : where_prov_rewriting :> TransformSugar.transform))
