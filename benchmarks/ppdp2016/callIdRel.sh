@@ -14,12 +14,24 @@ ms=(8 16 32 64)
 #     done
 # done
 
-# echo load for links
-# for n in ${ns[@]} ; do
-#     for m in ${ms[@]} ; do
-#         psql -U postgres links -f r_${n}_${m}.sql
-#     done
-# done
+echo create english
+for n in ${ns[@]} ; do
+    m=${ms[-1]}
+    ./idrel.lisp $n $m > i_s_c_o_${n}_${m}.sql
+done
+
+echo load for links
+for n in ${ns[@]} ; do
+    m=${ms[-1]}
+    psql -U postgres links -f i_s_c_o_${n}_${m}.sql
+done
+
+echo load for perm
+for n in ${ns[@]} ; do
+    m=${ms[-1]}
+    ~/tmp/bin/psql -p 23456 test -f i_s_c_o_${n}_${m}.sql
+done
+
 
 # echo create links queries
 # for n in ${ns[@]} ; do
@@ -28,14 +40,14 @@ ms=(8 16 32 64)
 #     done
 # done
 
-echo run links queries
-echo "llinks" > debug_links_lineage.out
-for n in ${ns[@]} ; do
-    for m in ${ms[@]} ; do
-        echo "NM: n $n m $m" >> debug_links_lineage.out
-        time ../../links --config=db.config r_${n}_${m}.links > /dev/null 2>> debug_links_lineage.out
-    done
-done
+# echo run links queries
+# echo "llinks" > debug_links_lineage.out
+# for n in ${ns[@]} ; do
+    # for m in ${ms[@]} ; do
+        # echo "NM: n $n m $m" >> debug_links_lineage.out
+        # time ../../links --config=db.config r_${n}_${m}.links > /dev/null 2>> debug_links_lineage.out
+    # done
+# done
 
 # echo load for perm
 # for n in ${ns[@]} ; do
