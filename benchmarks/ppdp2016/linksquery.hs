@@ -15,17 +15,17 @@ main = do
     sh $ do
       printf ("var db = database \"links\";\n")
       j <- select [1..m]
-      printf ("var r_"%d%"_"%d%" =\n") n j
-      printf ("table \"r_"%d%"_"%d%"\" with (oid: Int, a: Int, b: Int)\n") n j
-      printf ("where oid readonly tablekeys [[\"oid\"], [\"a\"], [\"b\"]] from db;\n")
+      printf ("var i_s_c_o_"%d%"_"%d%" =\n") n j
+      printf ("table \"i_s_c_o_"%d%"_"%d%"\" with (oid: Int, i: Int, s: String, cardinal: String, ordinal: String)\n") n j
+      printf ("where oid readonly tablekeys [[\"oid\"], [\"i\"]] from db;\n")
     sh $ do
       printf ("lineage { query { \n")
       j <- select [1..m]
-      printf ("for (t_"%d%" <-- r_"%d%"_"%d%")\n") j n j
+      printf ("for (t_"%d%" <-- i_s_c_o_"%d%"_"%d%")\n") j n j
     sh $ do
       printf ("where (")
       j <- select [1..m-2]
-      printf ("t_"%d%".a == t_"%d%".a && ") 1 (j+1)
+      printf ("t_"%d%".i == t_"%d%".i && ") 1 (j+1)
     sh $ do
-      printf ("t_"%d%".a == t_"%d%".a)\n") 1 m
-      printf ("[(a = t_1.a, b = t_1.b)] } }\n")
+      printf ("t_"%d%".i == t_"%d%".i)\n") 1 m
+      printf ("[(i = t_1.i, c = t_1.cardinal)] } }\n")

@@ -15,15 +15,15 @@ main = do
     sh $ do
       printf ("\\COPY (")
     sh $ do
-      printf ("SELECT PROVENANCE t_1.a, t_1.b FROM ")
+      printf ("SELECT PROVENANCE t_1.i, t_1.cardinal FROM ")
       j <- select [1..m-1]
-      printf ("r_"%d%"_"%d%" AS t_"%d%", ") n j j
+      printf ("i_s_c_o_"%d%"_"%d%" AS t_"%d%", ") n j j
     sh $ do
-      printf ("r_"%d%"_"%d%" AS t_"%d%" ") n m m
+      printf ("i_s_c_o_"%d%"_"%d%" AS t_"%d%" ") n m m
       printf ("WHERE ")
       j <- select [1..m-2]
-      printf ("t_"%d%".a = t_"%d%".a AND ") 1 (j+1)
+      printf ("t_"%d%".i = t_"%d%".i AND ") 1 (j+1)
     sh $ do
-      printf ("t_"%d%".a = t_"%d%".a") 1 m
+      printf ("t_"%d%".i = t_"%d%".i") 1 m
     sh $ do
       printf ") TO STDOUT WITH CSV\n"
