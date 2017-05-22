@@ -20,7 +20,7 @@ main = do
       printf ("i_s_c_o_"%d%"_"%d%" AS t_"%d%", ") n j j
     sh $ do
       printf ("i_s_c_o_"%d%"_"%d%" AS t_"%d%" ") n m m
-      printf ("WHERE ")
+      printf ("WHERE t_1.i % 10 = 0 AND ")
       j <- select [1..m-2]
       printf ("t_"%d%".i = t_"%d%".i AND ") 1 (j+1)
     sh $ do
