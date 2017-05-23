@@ -23,7 +23,7 @@ main = do
       j <- select [1..m]
       printf ("for (t_"%d%" <-- i_s_c_o_"%d%"_"%d%")\n") j n j
     sh $ do
-      printf ("where (mod(t_1.i, 10) == 9 && ")
+      printf ("where (mod(t_1.i, 100) < 5 && ")
       j <- select [1..m-2]
       printf ("t_"%d%".i == t_"%d%".i && ") 1 (j+1)
     sh $ do
