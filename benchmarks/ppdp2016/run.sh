@@ -44,6 +44,7 @@ function loadDump {
 # drop_tables
 # recreate_tables
 # time populate
+# pg_dump links -t departments -t employees -t tasks -t contacts > 8192.sql
 # time noprov
 
 function prepareCSV {
@@ -56,15 +57,15 @@ function sanitizeCSV {
     sed -i '/^Q/d' data.csv
 }
 
-# sizes=(4096 2048 1024 512 256 128 64 32 16 8 4)
-sizes=(4 4096)
+sizes=(65536 32768 16384 8192 4096 2048 1024 512 256 128 64 32 16 8 4)
+# sizes=(4 4096)
 
 prepareCSV
 for n in "${sizes[@]}"
 do
-    loadDump $n
-    allprov >> data.csv
-    someprov >> data.csv
-    noprov >> data.csv
+    # time loadDump $n
+    time allprov >> data.csv
+    time someprov >> data.csv
+    time noprov >> data.csv
 done
 sanitizeCSV

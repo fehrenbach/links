@@ -188,6 +188,7 @@ fun exclude(q) {
 }
 
 fun test(t) {
+  debug(t.msg ^^ " " ^^ intToString(n));
   print(t.msg ^^ " " ^^ intToString(n));
   if (exclude(t.msg)) {
     # print("Excluding " ^^ t.msg ^^ " at size " ^^ intToString(n));

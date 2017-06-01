@@ -454,7 +454,7 @@ module Eval = struct
               then
                 begin
                   let execute_shredded_raw (q, t) =
-		    (* Debug.print ("Generated query: "^q); *)
+		    Debug.print ("Generated query: "^q);
 		    Debug.debug_time "query execution" (fun () -> 
 		                                        (Database.execute_select_result (get_fields t) q db, t))
 		  in 
