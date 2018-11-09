@@ -2,7 +2,7 @@
 
 OCAMLMAKEFILE = ./OCamlMakefile
 
-PACKS=bigarray num str deriving.syntax deriving.syntax.classes deriving.runtime lwt lwt.syntax lwt.unix
+PACKS=bigarray num str deriving.syntax deriving.syntax.classes deriving.runtime lwt lwt_camlp4 lwt.unix
 export OCAMLFLAGS=-syntax camlp4o
 
 PATH := $(PATH):deriving
