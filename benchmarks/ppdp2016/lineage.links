@@ -291,7 +291,7 @@ fun q7() {
   lineage {
     for (d <-- departments)
     for (e <-- employees)
-    where (d.name == e.dept && e.salary > 1000000 || e.salary < 1000)
+    where (d.name == e.dept && (e.salary > 1000000 || e.salary < 1000))
       [(employee = (name = e.name, salary = e.salary),
         department = d.name)]
   }
@@ -320,7 +320,7 @@ fun qf3() {
   lineage {
     for (e1 <-- employees)
     for (e2 <-- employees)
-    where (e1.dept == e2.dept && e1.salary == e2.salary && e1.name <> e2.name)
+    where (e1.dept == e2.dept && (e1.salary == e2.salary && e1.name <> e2.name))
       [(e1.name, e2.name)]
   }
 }

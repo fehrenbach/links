@@ -291,7 +291,7 @@ fun q7() {
   query {
     for (d <-- departments)
     for (e <-- employees)
-    where (d.name == e.dept && e.salary > 1000000 || e.salary < 1000)
+    where (d.name == e.dept && (e.salary > 1000000 || e.salary < 1000))
       [(employee = (name = e.name, salary = e.salary),
         department = d.name)]
   }
